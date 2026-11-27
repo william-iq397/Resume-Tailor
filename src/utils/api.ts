@@ -2,10 +2,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
+export async function postJson<T>(
+  url: string,
+  body: unknown,
+  token?: string | null
+): Promise<T> {
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) {
       await sleep(1200);
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     const response = await fetch(url, {
@@ -13,10 +25,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
       credentials: 'same-origin',
       cache: 'no-store',
       redirect: 'manual',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
 

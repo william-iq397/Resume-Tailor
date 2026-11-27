@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Registered applicant or super admin account with subscription expiration timestamp.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID matching the document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name shown in the workspace and admin table.",
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "super_admin"],
+          "description": "Authorization role. Super admin is restricted to the configured owner email."
+        },
+        "paidUntil": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore timestamp until which the user has paid access, or null."
+        },
+        "lastRedeemedCode": {
+          "type": "string",
+          "description": "Most recently redeemed license code ID, or null.",
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9\\-]+$"
+        },
+        "freeUsed": {
+          "type": "integer",
+          "description": "Number of free tailored CV and motivation letter packages used upon registration (0 to 3 free limit)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the user record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the user record was last updated."
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "displayName",
+        "role",
+        "paidUntil",
+        "lastRedeemedCode",
+        "freeUsed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LicenseCode": {
+      "title": "LicenseCode",
+      "description": "Single-use license code created by super admin and redeemed atomically by a paying user.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "License code string matching the document ID (e.g. K7P2-9XQ4).",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9\\-]+$"
+        },
+        "used": {
+          "type": "boolean",
+          "description": "Whether the code has already been redeemed."
+        },
+        "durationDays": {
+          "type": "integer",
+          "description": "Number of days of access granted upon redemption (1 to 3650)."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional admin note such as buyer name or WhatsApp reference.",
+          "maxLength": 200
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID of the super admin who created the code.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the code was generated."
+        },
+        "usedBy": {
+          "type": "string",
+          "description": "UID of the user who redeemed the code, or null.",
+          "maxLength": 128
+        },
+        "usedByEmail": {
+          "type": "string",
+          "description": "Email of the user who redeemed the code, or null.",
+          "maxLength": 254
+        },
+        "usedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the code was redeemed, or null."
+        }
+      },
+      "required": [
+        "code",
+        "used",
+        "durationDays",
+        "note",
+        "createdBy",
+        "createdAt",
+        "usedBy",
+        "usedByEmail",
+        "usedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserAccount"
+      },
+      "description": "Stores registered users, roles, and paidUntil timestamps."
+    },
+    "/codes/{codeId}": {
+      "schema": {
+        "$ref": "#/entities/LicenseCode"
+      },
+      "description": "Stores single-use license codes issued by super admin for WhatsApp distribution."
+    }
+  }
+}

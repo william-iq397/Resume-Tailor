@@ -182,11 +182,11 @@ export function buildCoverLetterFromProfile(
     year: 'numeric',
   });
   const roleLabel = targetRole || 'Ausbildungsplatz';
-  const companyLabel = targetCompany || '[Unternehmensname]';
+  const companyLabel = targetCompany || 'Ihr Unternehmen';
 
   return {
     senderBlock: [
-      profile.fullName || '[Ihr Name]',
+      profile.fullName || 'Ihr Name',
       profile.streetAddress,
       profile.postalCity,
       profile.phone,
@@ -194,7 +194,7 @@ export function buildCoverLetterFromProfile(
     ]
       .filter(Boolean)
       .join('\n'),
-    recipientBlock: `${companyLabel}\nPersonalabteilung\n[Straße & Hausnummer]\n[PLZ & Ort]`,
+    recipientBlock: `${companyLabel}\nPersonalabteilung`,
     datePlaceLine: `${city}, ${today}`,
     subjectLine: `Bewerbung um einen Ausbildungsplatz: ${roleLabel}`,
     salutation: 'Sehr geehrte Damen und Herren,',
@@ -207,7 +207,7 @@ export function buildCoverLetterFromProfile(
       } zur Verfügung.`,
     ],
     closing: 'Mit freundlichen Grüßen',
-    signatureName: profile.fullName || '[Ihr Name]',
+    signatureName: profile.fullName || 'Ihr Name',
     englishSummary:
       'هذا نموذج أولي من بيانات ملفك الشخصي. بعد لصق إعلان الوظيفة والضغط على زر التجهيز، سيقوم الذكاء الاصطناعي بإعادة صياغة العنوان والنبذة والخبرات ورسالة الدافع لتناسب الوظيفة المطلوبة مع شرحها هنا بالعربية.',
   };
