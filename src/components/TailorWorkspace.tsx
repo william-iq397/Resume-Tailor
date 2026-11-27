@@ -12,7 +12,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import {
-  SAMPLE_JOB_PRESETS,
   buildCoverLetterFromProfile,
   buildCvFromProfile,
 } from '../data/presets';
@@ -236,24 +235,16 @@ export function TailorWorkspace({
     setTimeout(() => setJustSaved(false), 1800);
   };
 
-  const loadPreset = (presetId: string) => {
-    const preset = SAMPLE_JOB_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    onChangeTargetCompany('');
-    onChangeTargetRole('');
-    onChangeJobDescription(preset.description);
-    setError(null);
-  };
 
   const inputClass =
-    'mt-1 w-full px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600';
+    'mt-1 w-full px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600';
 
   return (
     <div className="space-y-6">
       <LicenseGateCard />
 
       {/* Simple 1-2 Step Guided Intro Banner */}
-      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg no-print">
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] no-print rounded-lg">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 dark:border-[#2A3B56]">
           <div>
             <h1 className="font-display text-lg font-bold text-slate-900 dark:text-[#EEF2F8]">
@@ -302,23 +293,6 @@ export function TailorWorkspace({
                 </button>
               </div>
             )}
-
-            {/* Quick Sample Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-[#9FB0C7] ml-1">
-                أو جرّب إعلاناً جاهزاً:
-              </span>
-              {SAMPLE_JOB_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => loadPreset(preset.id)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-slate-50 dark:bg-[#1D2B42] hover:bg-slate-100 dark:hover:bg-[#243652] border border-slate-200 dark:border-[#2A3B56] rounded-md transition-colors whitespace-nowrap"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
 
             <label className="block">
               <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">

@@ -8,7 +8,6 @@ import { TailorWorkspace } from './components/TailorWorkspace';
 import { useAuth } from './contexts/AuthContext';
 import {
   DEFAULT_TEMPLATE_CONFIG,
-  SAMPLE_JOB_PRESETS,
   SAMPLE_PROFILE,
 } from './data/presets';
 import type {
@@ -108,9 +107,7 @@ export default function App() {
   // Active tailoring session state
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus>('draft');
-  const [jobDescription, setJobDescription] = useState<string>(
-    SAMPLE_JOB_PRESETS[0].description
-  );
+  const [jobDescription, setJobDescription] = useState<string>('');
   const [targetCompany, setTargetCompany] = useState<string>('');
   const [targetRole, setTargetRole] = useState<string>('');
   const [language, setLanguage] = useState<OutputLanguage>('de_with_notes');
@@ -399,7 +396,7 @@ export default function App() {
         </header>
 
         {/* Main Viewport */}
-        <main className="flex-1 p-4 md:p-8 max-w-[1160px] w-full mx-auto">
+        <main className="flex-1 max-w-[1160px] w-full mx-auto my-6 px-4">
           {activeTab === 'tailor' && (
             <TailorWorkspace
               profile={profile}

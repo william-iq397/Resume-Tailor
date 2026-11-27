@@ -115,39 +115,9 @@ export function Sidebar({
       </div>
 
       <div className="border-t border-slate-200 dark:border-[#2A3B56] p-4 bg-[#F8FAFC] dark:bg-[#121C2C] space-y-3">
-        <div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">
-            المتقدم الحالي
-          </p>
-          <p className="text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] truncate">
-            {profile.fullName || 'لم يتم إدخال الاسم'}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5 truncate">
-            {[
-              profile.postalCity || 'ألمانيا',
-              primaryLanguage ? `${primaryLanguage.language} · ${primaryLanguage.level}` : '',
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              onSelectTab('profile');
-              onCloseMobile();
-            }}
-            className="mt-1.5 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
-          >
-            تعديل بياناتي
-          </button>
-        </div>
-
         <div className="pt-3 border-t border-slate-200 dark:border-[#2A3B56]">
           {firebaseUser ? (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-800 dark:text-[#EEF2F8] truncate">
-                {firebaseUser.email}
-              </p>
               <p className="text-[11px] text-slate-500 dark:text-[#9FB0C7]">
                 {isSuperAdmin
                   ? 'حساب المشرف العام'
@@ -183,7 +153,9 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="hidden lg:block shrink-0 no-print">{sidebarBody}</aside>
+      <aside className="hidden lg:block lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto shrink-0 no-print">
+        {sidebarBody}
+      </aside>
       {mobileOpen && (
         <div className="fixed inset-0 z-40 flex lg:hidden no-print">
           <div
