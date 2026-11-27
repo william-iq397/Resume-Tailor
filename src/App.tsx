@@ -92,7 +92,17 @@ function loadStoredTheme(): 'light' | 'dark' {
 
 export default function App() {
   const { firebaseUser, isSuperAdmin, signInWithGoogle, signOutUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('tailor');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => {
+    const hash = window.location.hash.replace('#', '') as WorkspaceTab;
+    if (hash === 'tailor' || hash === 'profile' || hash === 'archive' || hash === 'admin') {
+      return hash;
+    }
+    const saved = localStorage.getItem('ausbildung_active_tab') as WorkspaceTab | null;
+    if (saved === 'tailor' || saved === 'profile' || saved === 'archive' || saved === 'admin') {
+      return saved;
+    }
+    return 'tailor';
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadStoredTheme());
 
@@ -115,10 +125,12 @@ export default function App() {
   const [activePackage, setActivePackage] = useState<TailoredPackage | null>(null);
 
   useEffect(() => {
-    if (activeTab === 'admin' && !isSuperAdmin) {
+    window.location.hash = activeTab;
+    localStorage.setItem('ausbildung_active_tab', activeTab);
+    if (firebaseUser && activeTab === 'admin' && !isSuperAdmin) {
       setActiveTab('tailor');
     }
-  }, [activeTab, isSuperAdmin]);
+  }, [activeTab, firebaseUser, isSuperAdmin]);
 
   useEffect(() => {
     const root = document.documentElement;
