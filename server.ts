@@ -7,8 +7,8 @@ import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MODEL_NAME = "gemini-4-hydrogen";
-const FALLBACK_MODEL_NAME = "gemini-3.1-flash-lite";
+const MODEL_NAME = "gemini-3.1-flash-lite";      // stable, less crowded (if it's in your list)
+const FALLBACK_MODEL_NAME = "gemini-4-hydrogen";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -100,7 +100,7 @@ async function generateWithRetry(
 
 function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+  if (!apiKey || apiKey === "GEMINI_API_KEY") {
     throw Object.assign(
       new Error(
         "مفتاح Gemini API غير مضاف. يرجى إضافته من لوحة Settings > Secrets."
