@@ -282,19 +282,19 @@ export function AdminDashboard() {
             <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
               الكود (مثال: K7P2-9XQ4)
             </span>
-            <div className="flex gap-1.5 mt-1">
+            <div className='flex gap-4 relative'>
               <input
                 type="text"
                 dir="ltr"
                 value={newCode}
                 onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                className="flex-1 px-3 py-2 text-sm font-mono-tabular uppercase bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
+                className="px-3 py-2 text-sm font-mono-tabular uppercase bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
               />
               <button
                 type="button"
                 onClick={() => setNewCode(generateLicenseCode())}
                 title="توليد كود عشوائي"
-                className="px-2.5 py-2 bg-slate-100 dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-700 dark:text-[#EEF2F8] hover:bg-slate-200 dark:hover:bg-[#243652]"
+                className="absolute right-2 px-2.5 py-2 bg-slate-100 dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-700 dark:text-[#EEF2F8] hover:bg-slate-200 dark:hover:bg-[#243652]"
               >
                 <RefreshCw className="h-4 w-4" />
               </button>

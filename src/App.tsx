@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LogIn, Menu, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { LogIn, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ApplicationsArchive } from './components/ApplicationsArchive';
 import { ProfileView } from './components/ProfileView';
@@ -92,7 +92,7 @@ function loadStoredTheme(): 'light' | 'dark' {
 }
 
 export default function App() {
-  const { firebaseUser, isSuperAdmin, signInWithGoogle } = useAuth();
+  const { firebaseUser, isSuperAdmin, signInWithGoogle, signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('tailor');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadStoredTheme());
@@ -348,7 +348,17 @@ export default function App() {
               </button>
             )}
 
-            {!firebaseUser && (
+            {firebaseUser ? (
+              <button
+                type="button"
+                onClick={() => void signOutUser()}
+                aria-label="تسجيل الخروج"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-[#F3F6FA] dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-200/70 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">تسجيل الخروج</span>
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={() => void signInWithGoogle()}
