@@ -65,6 +65,18 @@ export interface RequirementMatch {
   strength: 'strong' | 'transferable' | 'gap';
 }
 
+export interface MatchNotification {
+  id: string;
+  title: string;
+  companyName: string;
+  read: string;
+  matchScore: number;
+  location: string;
+  isNewListing: boolean;
+  matchedAppLabel: string;
+  jobDescription: string;
+}
+
 export interface JobAnalysis {
   roleTitle: string;
   companyName: string;
