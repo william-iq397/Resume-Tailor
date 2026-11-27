@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun } from 'lucide-react';
+import { LogIn, Menu, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { AdminDashboard } from './components/AdminDashboard';
 import { ApplicationsArchive } from './components/ApplicationsArchive';
 import { ProfileView } from './components/ProfileView';
 import { Sidebar, type WorkspaceTab } from './components/Sidebar';
 import { TailorWorkspace } from './components/TailorWorkspace';
+import { useAuth } from './contexts/AuthContext';
 import {
   DEFAULT_TEMPLATE_CONFIG,
   SAMPLE_JOB_PRESETS,
@@ -16,6 +18,7 @@ import type {
   DocumentTemplateConfig,
   OutputLanguage,
   SavedApplication,
+  TailoredCv,
   TailoredPackage,
 } from './types/ausbildung';
 
@@ -89,6 +92,7 @@ function loadStoredTheme(): 'light' | 'dark' {
 }
 
 export default function App() {
+  const { firebaseUser, isSuperAdmin, signInWithGoogle } = useAuth();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('tailor');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadStoredTheme());
@@ -112,6 +116,12 @@ export default function App() {
   const [language, setLanguage] = useState<OutputLanguage>('de_with_notes');
   const [tone, setTone] = useState<ApplicationTone>('modern');
   const [activePackage, setActivePackage] = useState<TailoredPackage | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'admin' && !isSuperAdmin) {
+      setActiveTab('tailor');
+    }
+  }, [activeTab, isSuperAdmin]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -244,11 +254,49 @@ export default function App() {
     }
   };
 
+  const handleSyncCvToProfile = (cvToSync: TailoredCv) => {
+    const mergedSkills = cvToSync.skills
+      .flatMap((group) => group.items)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(', ');
+
+    setProfile((prev) => ({
+      ...prev,
+      summary: cvToSync.profileStatement || prev.summary,
+      experience: cvToSync.experience.map((exp, idx) => ({
+        id: prev.experience[idx]?.id || `exp-${Date.now()}-${idx}`,
+        period: exp.period,
+        role: exp.role,
+        organization: exp.organization,
+        location: exp.location,
+        highlights: exp.bullets.join('; '),
+      })),
+      education: cvToSync.education.map((edu, idx) => ({
+        id: prev.education[idx]?.id || `edu-${Date.now()}-${idx}`,
+        period: edu.period,
+        degree: edu.degree,
+        institution: edu.institution,
+        location: edu.location,
+        details: edu.details,
+      })),
+      skills: mergedSkills || prev.skills,
+      languages: cvToSync.languages.map((lang, idx) => ({
+        id: prev.languages[idx]?.id || `lang-${Date.now()}-${idx}`,
+        language: lang.language,
+        level: lang.level,
+      })),
+      interests: cvToSync.interests,
+    }));
+  };
+
   const breadcrumbLabel =
     activeTab === 'tailor'
       ? 'تجهيز التقديم'
       : activeTab === 'profile'
       ? 'ملفي الشخصي'
+      : activeTab === 'admin'
+      ? 'لوحة المشرف'
       : 'طلباتي المحفوظة';
 
   return (
@@ -289,6 +337,28 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>لوحة المشرف</span>
+              </button>
+            )}
+
+            {!firebaseUser && (
+              <button
+                type="button"
+                onClick={() => void signInWithGoogle()}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-[#F3F6FA] dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-200/70 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap shrink-0"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span>تسجيل الدخول</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
@@ -326,6 +396,8 @@ export default function App() {
               onUpdatePhoto={(photoUrl) =>
                 setProfile((prev) => ({ ...prev, photoUrl }))
               }
+              onUpdateProfile={setProfile}
+              onSyncCvToProfile={handleSyncCvToProfile}
               templateConfig={templateConfig}
               onChangeTemplateConfig={setTemplateConfig}
               jobDescription={jobDescription}
@@ -354,7 +426,9 @@ export default function App() {
           {activeTab === 'profile' && (
             <ProfileView
               profile={profile}
+              activePackage={activePackage}
               onChange={setProfile}
+              onSyncCvToProfile={handleSyncCvToProfile}
               onGoToTailor={() => setActiveTab('tailor')}
             />
           )}
@@ -369,6 +443,8 @@ export default function App() {
               onGoToTailor={handleStartNewApplication}
             />
           )}
+
+          {activeTab === 'admin' && isSuperAdmin && <AdminDashboard />}
         </main>
       </div>
     </div>

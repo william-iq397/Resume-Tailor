@@ -1,7 +1,16 @@
-import { FileText, FolderKanban, UserCheck, X } from 'lucide-react';
+import {
+  FileText,
+  FolderKanban,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  UserCheck,
+  X,
+} from 'lucide-react';
+import { FREE_QUOTA_LIMIT, useAuth } from '../contexts/AuthContext';
 import type { CandidateProfile } from '../types/ausbildung';
 
-export type WorkspaceTab = 'tailor' | 'profile' | 'archive';
+export type WorkspaceTab = 'tailor' | 'profile' | 'archive' | 'admin';
 
 interface SidebarProps {
   activeTab: WorkspaceTab;
@@ -20,10 +29,23 @@ export function Sidebar({
   mobileOpen,
   onCloseMobile,
 }: SidebarProps) {
+  const {
+    firebaseUser,
+    userDoc,
+    isSuperAdmin,
+    hasPaidAccess,
+    freeRemaining,
+    signInWithGoogle,
+    signOutUser,
+  } = useAuth();
+
   const navItems: { id: WorkspaceTab; label: string; icon: typeof FileText; count?: number }[] = [
     { id: 'tailor', label: 'تجهيز التقديم', icon: FileText },
     { id: 'profile', label: 'ملفي الشخصي', icon: UserCheck },
     { id: 'archive', label: 'طلباتي المحفوظة', icon: FolderKanban, count: savedCount },
+    ...(isSuperAdmin
+      ? [{ id: 'admin' as WorkspaceTab, label: 'لوحة المشرف', icon: ShieldCheck }]
+      : []),
   ];
 
   const primaryLanguage = profile.languages[0];
@@ -92,31 +114,69 @@ export function Sidebar({
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 dark:border-[#2A3B56] p-4 bg-[#F8FAFC] dark:bg-[#121C2C]">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-          المتقدم الحالي
-        </p>
-        <p className="text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] truncate">
-          {profile.fullName || 'لم يتم إدخال الاسم'}
-        </p>
-        <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5 truncate">
-          {[
-            profile.postalCity || 'ألمانيا',
-            primaryLanguage ? `${primaryLanguage.language} · ${primaryLanguage.level}` : '',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectTab('profile');
-            onCloseMobile();
-          }}
-          className="mt-3 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
-        >
-          تعديل بياناتي
-        </button>
+      <div className="border-t border-slate-200 dark:border-[#2A3B56] p-4 bg-[#F8FAFC] dark:bg-[#121C2C] space-y-3">
+        <div>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">
+            المتقدم الحالي
+          </p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] truncate">
+            {profile.fullName || 'لم يتم إدخال الاسم'}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5 truncate">
+            {[
+              profile.postalCity || 'ألمانيا',
+              primaryLanguage ? `${primaryLanguage.language} · ${primaryLanguage.level}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              onSelectTab('profile');
+              onCloseMobile();
+            }}
+            className="mt-1.5 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
+          >
+            تعديل بياناتي
+          </button>
+        </div>
+
+        <div className="pt-3 border-t border-slate-200 dark:border-[#2A3B56]">
+          {firebaseUser ? (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-800 dark:text-[#EEF2F8] truncate">
+                {firebaseUser.email}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-[#9FB0C7]">
+                {isSuperAdmin
+                  ? 'حساب المشرف العام'
+                  : hasPaidAccess && userDoc?.paidUntil
+                  ? `الاشتراك فعّال حتى ${userDoc.paidUntil.toDate().toLocaleDateString('ar-EG')}`
+                  : freeRemaining > 0
+                  ? `مجاني: متبقي ${freeRemaining} من ${FREE_QUOTA_LIMIT}`
+                  : 'انتهى الرصيد — أدخل كود تفعيل'}
+              </p>
+              <button
+                type="button"
+                onClick={() => void signOutUser()}
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-[#9FB0C7] hover:text-red-600 dark:hover:text-red-400"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                تسجيل الخروج
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void signInWithGoogle()}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              تسجيل الدخول بحساب Google
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

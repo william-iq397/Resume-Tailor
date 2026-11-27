@@ -1,14 +1,65 @@
 import "dotenv/config";
 import express, { type NextFunction, type Request, type Response } from "express";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { getApp, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MODEL_NAME = "gemini-3.1-flash-lite";      // stable, less crowded (if it's in your list)
+const MODEL_NAME = "gemini-3.1-flash-lite";
 const FALLBACK_MODEL_NAME = "gemini-4-hydrogen";
+
+function getFirebaseProjectId(): string | null {
+  try {
+    const configPath = path.resolve(__dirname, "firebase-applet-config.json");
+    if (!fs.existsSync(configPath)) return null;
+    const raw = JSON.parse(fs.readFileSync(configPath, "utf8")) as { projectId?: string };
+    if (!raw.projectId || raw.projectId === "remixed-project-id") return null;
+    return raw.projectId;
+  } catch {
+    return null;
+  }
+}
+
+function getFirebaseAdminAuth() {
+  const projectId = getFirebaseProjectId();
+  if (!projectId) {
+    throw Object.assign(
+      new Error("إعدادات Firebase غير مكتملة على الخادم."),
+      { statusCode: 503 }
+    );
+  }
+  const firebaseApp = getApps().length ? getApp() : initializeApp({ projectId });
+  return getAuth(firebaseApp);
+}
+
+async function requireFirebaseAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
+    res.status(401).json({ error: "يرجى تسجيل الدخول بحساب Google أولاً." });
+    return;
+  }
+
+  try {
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(token);
+    if (!decoded.email_verified) {
+      res.status(403).json({ error: "يرجى تأكيد البريد الإلكتروني لحسابك أولاً." });
+      return;
+    }
+    (req as Request & { authUser?: { uid: string; email?: string } }).authUser = {
+      uid: decoded.uid,
+      email: decoded.email,
+    };
+    next();
+  } catch {
+    res.status(401).json({ error: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً." });
+  }
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -62,8 +113,8 @@ async function generateWithRetry(
   }
 ): Promise<string> {
   const attempts: { model: string; thinkingLevel: ThinkingLevel; delayMs: number }[] = [
-    { model: MODEL_NAME, thinkingLevel: ThinkingLevel.LOW, delayMs: 0 },
-    { model: FALLBACK_MODEL_NAME, thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 300 },
+    { model: MODEL_NAME, thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 0 },
+    { model: FALLBACK_MODEL_NAME, thinkingLevel: ThinkingLevel.LOW, delayMs: 300 },
   ];
 
   let lastError: unknown;
@@ -100,7 +151,7 @@ async function generateWithRetry(
 
 function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "GEMINI_API_KEY") {
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "GEMINI_API_KEY") {
     throw Object.assign(
       new Error(
         "مفتاح Gemini API غير مضاف. يرجى إضافته من لوحة Settings > Secrets."
@@ -379,6 +430,75 @@ function sanitizeProfileForAi(profile: Record<string, unknown>) {
   return rest;
 }
 
+function cleanPlaceholderText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\[\s*\]/g, "")
+    .replace(/\[(?:undefined|null|datum|date|ort|unbekannt|keine\s+angabe|nicht\s+angegeben)\]/gi, "")
+    .replace(/\b(?:undefined|null)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function sanitizeTailoredPackage(pkg: Record<string, unknown>) {
+  const jobAnalysis = (pkg.jobAnalysis ?? {}) as Record<string, unknown>;
+  const tailoredCv = (pkg.tailoredCv ?? {}) as Record<string, unknown>;
+  const tailoredCoverLetter = (pkg.tailoredCoverLetter ?? {}) as Record<string, unknown>;
+
+  if (jobAnalysis) {
+    jobAnalysis.startDate = cleanPlaceholderText(jobAnalysis.startDate);
+    jobAnalysis.duration = cleanPlaceholderText(jobAnalysis.duration);
+    jobAnalysis.location = cleanPlaceholderText(jobAnalysis.location);
+    jobAnalysis.recipientContact = cleanPlaceholderText(jobAnalysis.recipientContact);
+    jobAnalysis.recipientAddress = cleanPlaceholderText(jobAnalysis.recipientAddress);
+  }
+
+  if (Array.isArray(tailoredCv.experience)) {
+    tailoredCv.experience = tailoredCv.experience.map((item) => {
+      const exp = item as Record<string, unknown>;
+      return {
+        ...exp,
+        period: cleanPlaceholderText(exp.period),
+        location: cleanPlaceholderText(exp.location),
+      };
+    });
+  }
+
+  if (Array.isArray(tailoredCv.education)) {
+    tailoredCv.education = tailoredCv.education.map((item) => {
+      const edu = item as Record<string, unknown>;
+      return {
+        ...edu,
+        period: cleanPlaceholderText(edu.period),
+        location: cleanPlaceholderText(edu.location),
+        details: cleanPlaceholderText(edu.details),
+      };
+    });
+  }
+
+  if (tailoredCoverLetter) {
+    tailoredCoverLetter.datePlaceLine = cleanPlaceholderText(tailoredCoverLetter.datePlaceLine);
+    tailoredCoverLetter.senderBlock =
+      typeof tailoredCoverLetter.senderBlock === "string"
+        ? tailoredCoverLetter.senderBlock
+            .split("\n")
+            .map((line) => cleanPlaceholderText(line))
+            .filter(Boolean)
+            .join("\n")
+        : "";
+    tailoredCoverLetter.recipientBlock =
+      typeof tailoredCoverLetter.recipientBlock === "string"
+        ? tailoredCoverLetter.recipientBlock
+            .split("\n")
+            .map((line) => cleanPlaceholderText(line))
+            .filter(Boolean)
+            .join("\n")
+        : "";
+  }
+
+  return pkg;
+}
+
 async function startServer() {
   const app = express();
   const port = Number(process.env.PORT) || 3000;
@@ -391,12 +511,14 @@ async function startServer() {
 
   app.get("/api/health", (_req: Request, res: Response) => {
     const hasKey = Boolean(
-      process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY"
+      process.env.GEMINI_API_KEY &&
+        process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
+        process.env.GEMINI_API_KEY !== "GEMINI_API_KEY"
     );
     res.json({ ok: true, aiConfigured: hasKey });
   });
 
-  app.post("/api/tailor", async (req: Request, res: Response) => {
+  app.post("/api/tailor", requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const { profile, jobDescription, targetCompany, targetRole, language, tone } = req.body ?? {};
 
@@ -443,7 +565,8 @@ CRITICAL RULES:
    - Closing: "Mit freundlichen Grüßen" (or "Sincerely," if English).
 4. ${languageInstruction}
 5. ${toneInstruction}
-6. For requirementMatches[].strength, only use one of: "strong", "transferable", or "gap". Keep requirementMatches concise (5 to 7 key requirements).`;
+6. For requirementMatches[].strength, only use one of: "strong", "transferable", or "gap". Keep requirementMatches concise (5 to 7 key requirements).
+7. NO EMPTY BRACKETS OR UNDEFINED DATES: Never output literal "[]", "[...]", "[Datum]", "[Ort]", or "undefined" anywhere (especially in period, startDate, datePlaceLine, or location). If a date or location is missing or undefined, use an empty string "" or a natural phrase like "nach Vereinbarung" — never brackets.`;
 
       const userPrompt = `TARGET OVERRIDES (if non-empty, prioritize these):
 Target Company: ${targetCompany || "(extract from job description)"}
@@ -461,14 +584,14 @@ ${jobDescription}`;
         responseSchema: TAILOR_RESPONSE_SCHEMA,
       });
 
-      const parsed = JSON.parse(rawText);
+      const parsed = sanitizeTailoredPackage(JSON.parse(rawText) as Record<string, unknown>);
       res.json(parsed);
     } catch (err) {
       handleGeminiError(err, res);
     }
   });
 
-  app.post("/api/refine", async (req: Request, res: Response) => {
+  app.post("/api/refine", requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const { profile, jobDescription, currentPackage, targetSection, instruction, language } =
         req.body ?? {};
@@ -487,6 +610,7 @@ ${jobDescription}`;
       const systemInstruction = `You are refining an existing tailored German Ausbildung application package (Lebenslauf and/or DIN 5008 Anschreiben).
 Follow the user's refinement instruction precisely (even if the instruction is written in Arabic) while strictly preserving truthfulness against the Candidate Profile (never invent fake experience or qualifications).
 Keep the CV and Cover Letter in German (or English if language === "en"), and keep jobAnalysis.overview, gapsOrActionItems, tailoringNotes, and tailoredCoverLetter.englishSummary in clear, simple Arabic.
+Never output literal "[]", "[...]", or "undefined" if any date or field is missing — use empty string "" instead.
 Target section to focus on: ${targetSection || "both"}.
 Output language mode: ${language || "de_with_notes"}.
 Return the complete updated JSON object matching the schema.`;
@@ -507,13 +631,13 @@ ${JSON.stringify(currentPackage, null, 2)}`,
         responseSchema: TAILOR_RESPONSE_SCHEMA,
       });
 
-      res.json(JSON.parse(rawText));
+      res.json(sanitizeTailoredPackage(JSON.parse(rawText) as Record<string, unknown>));
     } catch (err) {
       handleGeminiError(err, res);
     }
   });
 
-  app.post("/api/parse-cv", async (req: Request, res: Response) => {
+  app.post("/api/parse-cv", requireFirebaseAuth, async (req: Request, res: Response) => {
     try {
       const { rawText } = req.body ?? {};
       if (!rawText || typeof rawText !== "string" || !rawText.trim()) {

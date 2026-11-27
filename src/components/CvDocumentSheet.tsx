@@ -7,7 +7,10 @@ import {
   FileDown,
   Loader2,
   Pencil,
+  Plus,
   Printer,
+  Save,
+  Trash2,
   User,
 } from 'lucide-react';
 import { getAccentMeta } from '../data/presets';
@@ -28,7 +31,9 @@ interface CvDocumentSheetProps {
   isTailored: boolean;
   onChangeTemplateConfig: (next: DocumentTemplateConfig) => void;
   onUpdatePhoto: (photoUrl: string) => void;
+  onUpdateProfile: (nextProfile: CandidateProfile) => void;
   onUpdateCv: (next: TailoredCv) => void;
+  onSyncCvToProfile: (cvToSync: TailoredCv) => void;
 }
 
 async function readAndResizePhoto(file: File): Promise<string> {
@@ -63,10 +68,13 @@ export function CvDocumentSheet({
   isTailored,
   onChangeTemplateConfig,
   onUpdatePhoto,
+  onUpdateProfile,
   onUpdateCv,
+  onSyncCvToProfile,
 }: CvDocumentSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [syncedToProfile, setSyncedToProfile] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [imgError, setImgError] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -103,6 +111,12 @@ export function CvDocumentSheet({
     if (!templateConfig.showPhoto) {
       onChangeTemplateConfig({ ...templateConfig, showPhoto: true });
     }
+  };
+
+  const handleSyncToProfile = () => {
+    onSyncCvToProfile(cv);
+    setSyncedToProfile(true);
+    setTimeout(() => setSyncedToProfile(false), 2000);
   };
 
   const atsChecks = [
@@ -163,6 +177,9 @@ export function CvDocumentSheet({
       : []),
   ].filter((item) => Boolean(item.value));
 
+  const editInputClass =
+    'w-full px-2.5 py-1.5 text-sm border border-teal-400 rounded bg-teal-50/40 text-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-600';
+
   return (
     <div className="space-y-4">
       <input
@@ -212,6 +229,18 @@ export function CvDocumentSheet({
           >
             <Pencil className="h-3.5 w-3.5" />
             {isEditing ? 'إنهاء التعديل' : 'تعديل النص يدوياً'}
+          </button>
+          <button
+            type="button"
+            onClick={handleSyncToProfile}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 rounded-lg transition-colors whitespace-nowrap"
+          >
+            {syncedToProfile ? (
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            {syncedToProfile ? 'تم الحفظ في ملفي الشخصي' : 'حفظ التغييرات في ملفي الشخصي'}
           </button>
           <button
             type="button"
@@ -301,31 +330,109 @@ export function CvDocumentSheet({
                 </span>
               </div>
 
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900">
-                {profile.fullName || 'Ihr Name'}
-              </h2>
-
               {isEditing ? (
-                <input
-                  type="text"
-                  value={cv.headline}
-                  onChange={(e) => onUpdateCv({ ...cv, headline: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-sm font-semibold border border-teal-400 rounded bg-teal-50/40"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={profile.fullName}
+                    onChange={(e) => onUpdateProfile({ ...profile, fullName: e.target.value })}
+                    placeholder="Vollständiger Name"
+                    className={`${editInputClass} text-lg font-bold`}
+                  />
+                  <input
+                    type="text"
+                    value={cv.headline}
+                    onChange={(e) => onUpdateCv({ ...cv, headline: e.target.value })}
+                    placeholder="Zielberuf / Überschrift"
+                    className={`${editInputClass} font-semibold`}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={profile.streetAddress}
+                      onChange={(e) =>
+                        onUpdateProfile({ ...profile, streetAddress: e.target.value })
+                      }
+                      placeholder="Straße & Hausnummer"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.postalCity}
+                      onChange={(e) => onUpdateProfile({ ...profile, postalCity: e.target.value })}
+                      placeholder="PLZ & Ort"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.phone}
+                      onChange={(e) => onUpdateProfile({ ...profile, phone: e.target.value })}
+                      placeholder="Telefon"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="email"
+                      value={profile.email}
+                      onChange={(e) => onUpdateProfile({ ...profile, email: e.target.value })}
+                      placeholder="E-Mail"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.linkedInOrPortfolio}
+                      onChange={(e) =>
+                        onUpdateProfile({ ...profile, linkedInOrPortfolio: e.target.value })
+                      }
+                      placeholder="Web / Portfolio"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.availability}
+                      onChange={(e) =>
+                        onUpdateProfile({ ...profile, availability: e.target.value })
+                      }
+                      placeholder="Verfügbarkeit"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.birthInfo}
+                      onChange={(e) => onUpdateProfile({ ...profile, birthInfo: e.target.value })}
+                      placeholder="Geburtsdatum/-ort"
+                      className={editInputClass}
+                    />
+                    <input
+                      type="text"
+                      value={profile.nationality}
+                      onChange={(e) =>
+                        onUpdateProfile({ ...profile, nationality: e.target.value })
+                      }
+                      placeholder="Staatsangehörigkeit"
+                      className={editInputClass}
+                    />
+                  </div>
+                </div>
               ) : (
-                <p className="text-sm font-semibold" style={{ color: accent.hex }}>
-                  {cv.headline}
-                </p>
-              )}
+                <>
+                  <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900">
+                    {profile.fullName || 'Ihr Name'}
+                  </h2>
 
-              <div className="pt-2 space-y-1 text-xs text-slate-700">
-                {labeledContacts.map((item) => (
-                  <p key={item.label}>
-                    <span className="font-semibold text-slate-900">{item.label}: </span>
-                    <span>{item.value}</span>
+                  <p className="text-sm font-semibold" style={{ color: accent.hex }}>
+                    {cv.headline}
                   </p>
-                ))}
-              </div>
+
+                  <div className="pt-2 space-y-1 text-xs text-slate-700">
+                    {labeledContacts.map((item) => (
+                      <p key={item.label}>
+                        <span className="font-semibold text-slate-900">{item.label}: </span>
+                        <span>{item.value}</span>
+                      </p>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {renderPhotoBox('w-28 h-36')}
@@ -344,7 +451,7 @@ export function CvDocumentSheet({
                 rows={3}
                 value={cv.profileStatement}
                 onChange={(e) => onUpdateCv({ ...cv, profileStatement: e.target.value })}
-                className="w-full p-2.5 text-sm border border-teal-400 rounded bg-teal-50/40"
+                className="w-full p-2.5 text-sm border border-teal-400 rounded bg-teal-50/40 text-slate-900"
               />
             ) : (
               <p className="text-sm leading-relaxed text-slate-700">{cv.profileStatement}</p>
@@ -352,33 +459,62 @@ export function CvDocumentSheet({
           </section>
 
           {/* 02. Berufserfahrung & Praktika */}
-          {cv.experience.length > 0 && (
+          {(cv.experience.length > 0 || isEditing) && (
             <section>
-              <h3
-                className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-3"
-                style={{ color: accent.hex }}
-              >
-                {isEuropass ? 'Berufserfahrung & Praktika' : 'Praxiserfahrung & Praktika'}
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-3">
+                <h3
+                  className="text-xs font-bold uppercase tracking-wider"
+                  style={{ color: accent.hex }}
+                >
+                  {isEuropass ? 'Berufserfahrung & Praktika' : 'Praxiserfahrung & Praktika'}
+                </h3>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateCv({
+                        ...cv,
+                        experience: [
+                          ...cv.experience,
+                          { period: '', role: '', organization: '', location: '', bullets: [''] },
+                        ],
+                      })
+                    }
+                    className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Experience
+                  </button>
+                )}
+              </div>
               <div className="space-y-4">
                 {cv.experience.map((exp, idx) => (
                   <div key={idx} className="space-y-1">
                     {isEditing ? (
-                      <div className="space-y-2 p-2.5 border border-teal-200 rounded bg-teal-50/20">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <input
-                            type="text"
-                            value={exp.period}
-                            onChange={(e) => {
-                              const next = [...cv.experience];
-                              next[idx] = { ...exp, period: e.target.value };
-                              onUpdateCv({ ...cv, experience: next });
-                            }}
-                            className="px-2 py-1 text-xs border border-teal-300 rounded bg-white"
-                          />
+                      <div className="space-y-2 p-3 border border-teal-200 rounded bg-teal-50/20">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                            Experience #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdateCv({
+                                ...cv,
+                                experience: cv.experience.filter((_, i) => i !== idx),
+                              })
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <input
                             type="text"
                             value={exp.role}
+                            placeholder="Rolle / Position"
                             onChange={(e) => {
                               const next = [...cv.experience];
                               next[idx] = { ...exp, role: e.target.value };
@@ -388,10 +524,33 @@ export function CvDocumentSheet({
                           />
                           <input
                             type="text"
+                            value={exp.period}
+                            placeholder="MM/YYYY – MM/YYYY"
+                            onChange={(e) => {
+                              const next = [...cv.experience];
+                              next[idx] = { ...exp, period: e.target.value };
+                              onUpdateCv({ ...cv, experience: next });
+                            }}
+                            className="px-2 py-1 text-xs border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
                             value={exp.organization}
+                            placeholder="Unternehmen / Einrichtung"
                             onChange={(e) => {
                               const next = [...cv.experience];
                               next[idx] = { ...exp, organization: e.target.value };
+                              onUpdateCv({ ...cv, experience: next });
+                            }}
+                            className="px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={exp.location}
+                            placeholder="Ort"
+                            onChange={(e) => {
+                              const next = [...cv.experience];
+                              next[idx] = { ...exp, location: e.target.value };
                               onUpdateCv({ ...cv, experience: next });
                             }}
                             className="px-2 py-1 text-sm border border-teal-300 rounded bg-white"
@@ -400,6 +559,7 @@ export function CvDocumentSheet({
                         <textarea
                           rows={Math.max(2, exp.bullets.length)}
                           value={exp.bullets.join('\n')}
+                          placeholder="Aufgaben & Erfolge (eine Zeile pro Punkt)"
                           onChange={(e) => {
                             const next = [...cv.experience];
                             next[idx] = {
@@ -418,9 +578,11 @@ export function CvDocumentSheet({
                       <>
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <p className="text-sm font-semibold text-slate-900">{exp.role}</p>
-                          <span className="font-mono-tabular text-xs text-slate-500">
-                            {exp.period}
-                          </span>
+                          {exp.period && (
+                            <span className="font-mono-tabular text-xs text-slate-500">
+                              {exp.period}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs font-medium text-slate-600">
                           {exp.organization}
@@ -440,27 +602,133 @@ export function CvDocumentSheet({
           )}
 
           {/* 03. Schul- und Berufsbildung */}
-          {cv.education.length > 0 && (
+          {(cv.education.length > 0 || isEditing) && (
             <section>
-              <h3
-                className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-3"
-                style={{ color: accent.hex }}
-              >
-                {isEuropass ? 'Schul- und Berufsbildung' : 'Schulbildung'}
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-3">
+                <h3
+                  className="text-xs font-bold uppercase tracking-wider"
+                  style={{ color: accent.hex }}
+                >
+                  {isEuropass ? 'Schul- und Berufsbildung' : 'Schulbildung'}
+                </h3>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateCv({
+                        ...cv,
+                        education: [
+                          ...cv.education,
+                          { period: '', degree: '', institution: '', location: '', details: '' },
+                        ],
+                      })
+                    }
+                    className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Education
+                  </button>
+                )}
+              </div>
               <div className="space-y-3.5">
                 {cv.education.map((edu, idx) => (
                   <div key={idx}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{edu.degree}</p>
-                      <span className="font-mono-tabular text-xs text-slate-500">{edu.period}</span>
-                    </div>
-                    <p className="text-xs font-medium text-slate-600">
-                      {edu.institution}
-                      {edu.location ? ` | ${edu.location}` : ''}
-                    </p>
-                    {edu.details && (
-                      <p className="text-sm text-slate-700 mt-1">{edu.details}</p>
+                    {isEditing ? (
+                      <div className="space-y-2 p-3 border border-teal-200 rounded bg-teal-50/20">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                            Education #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdateCv({
+                                ...cv,
+                                education: cv.education.filter((_, i) => i !== idx),
+                              })
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={edu.degree}
+                            placeholder="Abschluss"
+                            onChange={(e) => {
+                              const next = [...cv.education];
+                              next[idx] = { ...edu, degree: e.target.value };
+                              onUpdateCv({ ...cv, education: next });
+                            }}
+                            className="px-2 py-1 text-sm font-semibold border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={edu.period}
+                            placeholder="MM/YYYY – MM/YYYY"
+                            onChange={(e) => {
+                              const next = [...cv.education];
+                              next[idx] = { ...edu, period: e.target.value };
+                              onUpdateCv({ ...cv, education: next });
+                            }}
+                            className="px-2 py-1 text-xs border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={edu.institution}
+                            placeholder="Schule / Institut"
+                            onChange={(e) => {
+                              const next = [...cv.education];
+                              next[idx] = { ...edu, institution: e.target.value };
+                              onUpdateCv({ ...cv, education: next });
+                            }}
+                            className="px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={edu.location}
+                            placeholder="Ort"
+                            onChange={(e) => {
+                              const next = [...cv.education];
+                              next[idx] = { ...edu, location: e.target.value };
+                              onUpdateCv({ ...cv, education: next });
+                            }}
+                            className="px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={edu.details}
+                          placeholder="Schwerpunkte / Noten"
+                          onChange={(e) => {
+                            const next = [...cv.education];
+                            next[idx] = { ...edu, details: e.target.value };
+                            onUpdateCv({ ...cv, education: next });
+                          }}
+                          className="w-full px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-900">{edu.degree}</p>
+                          {edu.period && (
+                            <span className="font-mono-tabular text-xs text-slate-500">
+                              {edu.period}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-slate-600">
+                          {edu.institution}
+                          {edu.location ? ` | ${edu.location}` : ''}
+                        </p>
+                        {edu.details && (
+                          <p className="text-sm text-slate-700 mt-1">{edu.details}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -469,7 +737,7 @@ export function CvDocumentSheet({
           )}
 
           {/* 04. Persönliche Fähigkeiten & Sprachkenntnisse */}
-          {(cv.languages.length > 0 || cv.skills.length > 0) && (
+          {(cv.languages.length > 0 || cv.skills.length > 0 || isEditing) && (
             <section className="space-y-4">
               <h3
                 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5"
@@ -478,41 +746,151 @@ export function CvDocumentSheet({
                 {isEuropass ? 'Persönliche Fähigkeiten & Sprachen' : 'Kenntnisse & Sprachen'}
               </h3>
 
-              {cv.languages.length > 0 && (
-                <div className="space-y-1.5">
-                  {cv.languages.map((lang, idx) => (
-                    <p key={idx} className="text-sm text-slate-700">
-                      <span className="font-semibold text-slate-900">{lang.language}: </span>
-                      <span>{lang.level}</span>
-                    </p>
-                  ))}
+              {(cv.languages.length > 0 || isEditing) && (
+                <div className="space-y-2">
+                  {isEditing ? (
+                    <div className="space-y-2 p-3 border border-teal-200 rounded bg-teal-50/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                          Languages
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateCv({
+                              ...cv,
+                              languages: [...cv.languages, { language: '', level: 'B2' }],
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add Language
+                        </button>
+                      </div>
+                      {cv.languages.map((lang, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={lang.language}
+                            placeholder="Sprache"
+                            onChange={(e) => {
+                              const next = [...cv.languages];
+                              next[idx] = { ...lang, language: e.target.value };
+                              onUpdateCv({ ...cv, languages: next });
+                            }}
+                            className="flex-1 px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={lang.level}
+                            placeholder="Niveau (z.B. B2)"
+                            onChange={(e) => {
+                              const next = [...cv.languages];
+                              next[idx] = { ...lang, level: e.target.value };
+                              onUpdateCv({ ...cv, languages: next });
+                            }}
+                            className="w-40 px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdateCv({
+                                ...cv,
+                                languages: cv.languages.filter((_, i) => i !== idx),
+                              })
+                            }
+                            aria-label="Remove language"
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    cv.languages.map((lang, idx) => (
+                      <p key={idx} className="text-sm text-slate-700">
+                        <span className="font-semibold text-slate-900">{lang.language}: </span>
+                        <span>{lang.level}</span>
+                      </p>
+                    ))
+                  )}
                 </div>
               )}
 
-              {cv.skills.length > 0 && (
+              {(cv.skills.length > 0 || isEditing) && (
                 <div className="space-y-2.5">
+                  {isEditing && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateCv({
+                            ...cv,
+                            skills: [...cv.skills, { category: 'Kompetenzen', items: [] }],
+                          })
+                        }
+                        className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Skill Category
+                      </button>
+                    </div>
+                  )}
                   {cv.skills.map((group, idx) => (
                     <div key={idx}>
-                      <p className="text-xs font-semibold text-slate-900">{group.category}</p>
                       {isEditing ? (
-                        <input
-                          type="text"
-                          value={group.items.join(', ')}
-                          onChange={(e) => {
-                            const next = [...cv.skills];
-                            next[idx] = {
-                              ...group,
-                              items: e.target.value
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter(Boolean),
-                            };
-                            onUpdateCv({ ...cv, skills: next });
-                          }}
-                          className="mt-1 w-full px-2 py-1 text-sm border border-teal-400 rounded bg-teal-50/40"
-                        />
+                        <div className="space-y-1.5 p-2.5 border border-teal-200 rounded bg-teal-50/20">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={group.category}
+                              placeholder="Kategorie"
+                              onChange={(e) => {
+                                const next = [...cv.skills];
+                                next[idx] = { ...group, category: e.target.value };
+                                onUpdateCv({ ...cv, skills: next });
+                              }}
+                              className="flex-1 px-2 py-1 text-xs font-semibold border border-teal-300 rounded bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUpdateCv({
+                                  ...cv,
+                                  skills: cv.skills.filter((_, i) => i !== idx),
+                                })
+                              }
+                              aria-label="Remove skill category"
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={group.items.join(', ')}
+                            placeholder="Skill 1, Skill 2, ..."
+                            onChange={(e) => {
+                              const next = [...cv.skills];
+                              next[idx] = {
+                                ...group,
+                                items: e.target.value
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
+                              };
+                              onUpdateCv({ ...cv, skills: next });
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-teal-300 rounded bg-white"
+                          />
+                        </div>
                       ) : (
-                        <p className="text-sm text-slate-700 mt-0.5">{group.items.join(', ')}</p>
+                        <>
+                          <p className="text-xs font-semibold text-slate-900">{group.category}</p>
+                          <p className="text-sm text-slate-700 mt-0.5">{group.items.join(', ')}</p>
+                        </>
                       )}
                     </div>
                   ))}
@@ -522,7 +900,7 @@ export function CvDocumentSheet({
           )}
 
           {/* 05. Interessen */}
-          {cv.interests && (
+          {(cv.interests || isEditing) && (
             <section>
               <h3
                 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-2"
@@ -534,8 +912,9 @@ export function CvDocumentSheet({
                 <input
                   type="text"
                   value={cv.interests}
+                  placeholder="Interessen & Hobbys"
                   onChange={(e) => onUpdateCv({ ...cv, interests: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-sm border border-teal-400 rounded bg-teal-50/40"
+                  className="w-full px-2.5 py-1.5 text-sm border border-teal-400 rounded bg-teal-50/40 text-slate-900"
                 />
               ) : (
                 <p className="text-sm text-slate-700">{cv.interests}</p>

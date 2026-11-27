@@ -1,17 +1,22 @@
 import { useRef, useState } from 'react';
-import { Camera, Loader2, Plus, Trash2, Upload, User } from 'lucide-react';
+import { Camera, CheckCircle2, Loader2, Plus, Sparkles, Trash2, Upload, User } from 'lucide-react';
 import { EMPTY_PROFILE, SAMPLE_PROFILE } from '../data/presets';
+import { useAuth } from '../contexts/AuthContext';
 import type {
   CandidateProfile,
   EducationItem,
   ExperienceItem,
   LanguageItem,
+  TailoredCv,
+  TailoredPackage,
 } from '../types/ausbildung';
 import { postJson } from '../utils/api';
 
 interface ProfileViewProps {
   profile: CandidateProfile;
+  activePackage: TailoredPackage | null;
   onChange: (next: CandidateProfile) => void;
+  onSyncCvToProfile: (cv: TailoredCv) => void;
   onGoToTailor: () => void;
 }
 
@@ -41,7 +46,14 @@ async function resizeImageFileToDataUrl(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.88);
 }
 
-export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProps) {
+export function ProfileView({
+  profile,
+  activePackage,
+  onChange,
+  onSyncCvToProfile,
+  onGoToTailor,
+}: ProfileViewProps) {
+  const { firebaseUser, canGenerate, getIdToken } = useAuth();
   const [showImport, setShowImport] = useState(false);
   const [rawCvText, setRawCvText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
@@ -143,10 +155,21 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
 
   const handleParseCv = async () => {
     if (!rawCvText.trim()) return;
+    if (!firebaseUser) {
+      setParseError('يرجى تسجيل الدخول بحساب Google أولاً لاستخدام الاستخراج الذكي.');
+      return;
+    }
+    if (!canGenerate) {
+      setParseError(
+        'LIMIT_REACHED: استنفدت المحاولات المجانية الـ 3 أو انتهى اشتراكك. أدخل كود تفعيل في صفحة التجهيز للمتابعة.'
+      );
+      return;
+    }
     setIsParsing(true);
     setParseError(null);
     setStatusMessage(null);
     try {
+      const token = await getIdToken();
       const data = await postJson<{
         fullName?: string;
         email?: string;
@@ -163,7 +186,7 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
         skills?: string;
         languages?: Omit<LanguageItem, 'id'>[];
         interests?: string;
-      }>('/api/parse-cv', { rawText: rawCvText });
+      }>('/api/parse-cv', { rawText: rawCvText }, token);
 
       onChange({
         ...profile,
@@ -276,6 +299,62 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
             إخفاء
           </button>
         </div>
+      )}
+
+      {activePackage && (
+        <section className="bg-teal-50/70 dark:bg-[#162133] border border-teal-200 dark:border-[#2A3B56] rounded-lg p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-teal-700 dark:text-teal-300 shrink-0" />
+              <div>
+                <h2 className="font-display text-sm font-bold text-slate-900 dark:text-[#EEF2F8]">
+                  التغييرات المقترحة من آخر تجهيز ({activePackage.jobAnalysis.roleTitle})
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-[#9FB0C7]">
+                  يمكنك مراجعة كيف صاغ الذكاء الاصطناعي بياناتك للوظيفة واعتمادها داخل ملفك الشخصي.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onSyncCvToProfile(activePackage.tailoredCv);
+                setStatusMessage('تم حفظ التغييرات المعدلة في ملفك الشخصي بنجاح.');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              اعتماد التغييرات في ملفي الشخصي
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-3.5 space-y-1.5">
+              <p className="font-semibold text-slate-500 dark:text-[#9FB0C7]">
+                النبذة الحالية في ملفك:
+              </p>
+              <p className="text-slate-700 dark:text-[#C5D1E0] leading-relaxed">
+                {profile.summary || '—'}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-[#1D2B42] border border-teal-200 dark:border-teal-800 rounded-lg p-3.5 space-y-1.5" dir="ltr">
+              <p className="font-semibold text-teal-700 dark:text-teal-300 text-right" dir="rtl">
+                النبذة المعدلة للوظيفة:
+              </p>
+              <p className="text-slate-800 dark:text-[#EEF2F8] leading-relaxed">
+                {activePackage.tailoredCv.profileStatement}
+              </p>
+            </div>
+          </div>
+
+          {activePackage.tailoringNotes.length > 0 && (
+            <ul className="text-xs text-slate-700 dark:text-[#C5D1E0] list-disc pr-4 space-y-1">
+              {activePackage.tailoringNotes.map((note, idx) => (
+                <li key={idx}>{note}</li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       {showImport && (

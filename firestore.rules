@@ -1,0 +1,251 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'hsenmhmd1022@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCodeId(codeId) {
+      return codeId is string && codeId.size() >= 4 && codeId.size() <= 32 && codeId.matches('^[A-Z0-9\\-]+$');
+    }
+
+    function isValidUser(data, userId) {
+      return data.keys().hasAll([
+        'uid',
+        'email',
+        'displayName',
+        'role',
+        'paidUntil',
+        'lastRedeemedCode',
+        'freeUsed',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid',
+        'email',
+        'displayName',
+        'role',
+        'paidUntil',
+        'lastRedeemedCode',
+        'freeUsed',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.uid is string && data.uid == userId && data.uid.size() <= 128 &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+      data.displayName is string && data.displayName.size() <= 120 &&
+      data.role in ['user', 'super_admin'] &&
+      (data.paidUntil == null || data.paidUntil is timestamp) &&
+      (data.lastRedeemedCode == null || isValidCodeId(data.lastRedeemedCode)) &&
+      data.freeUsed is int && data.freeUsed >= 0 && data.freeUsed <= 100000 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidCode(data, codeId) {
+      return data.keys().hasAll([
+        'code',
+        'used',
+        'durationDays',
+        'note',
+        'createdBy',
+        'createdAt',
+        'usedBy',
+        'usedByEmail',
+        'usedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'code',
+        'used',
+        'durationDays',
+        'note',
+        'createdBy',
+        'createdAt',
+        'usedBy',
+        'usedByEmail',
+        'usedAt'
+      ]) &&
+      isValidCodeId(data.code) && data.code == codeId &&
+      data.used is bool &&
+      data.durationDays is int && data.durationDays >= 1 && data.durationDays <= 3650 &&
+      data.note is string && data.note.size() <= 200 &&
+      data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+      data.createdAt is timestamp &&
+      (data.usedBy == null || (data.usedBy is string && data.usedBy.size() >= 1 && data.usedBy.size() <= 128)) &&
+      (data.usedByEmail == null || (data.usedByEmail is string && data.usedByEmail.size() >= 3 && data.usedByEmail.size() <= 254)) &&
+      (data.usedAt == null || data.usedAt is timestamp);
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
+      allow list: if isSuperAdmin();
+
+      allow create: if isValidId(userId) &&
+        isValidUser(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          isSuperAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().email == request.auth.token.email &&
+            incoming().role == 'user' &&
+            incoming().paidUntil == null &&
+            incoming().lastRedeemedCode == null &&
+            incoming().freeUsed == 0
+          )
+        );
+
+      allow update: if isValidId(userId) &&
+        isValidUser(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isSuperAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().email == existing().email &&
+            incoming().role == existing().role &&
+            incoming().updatedAt == request.time &&
+            (
+              // Action 1: Update displayName only
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) &&
+                incoming().paidUntil == existing().paidUntil &&
+                incoming().lastRedeemedCode == existing().lastRedeemedCode &&
+                ('freeUsed' in existing()) &&
+                incoming().freeUsed == existing().freeUsed
+              ) ||
+              // Action 2: Atomic license code redemption (preserves freeUsed counter)
+              (
+                (
+                  (
+                    ('freeUsed' in existing()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['paidUntil', 'lastRedeemedCode', 'updatedAt']) &&
+                    incoming().freeUsed == existing().freeUsed
+                  ) ||
+                  (
+                    !('freeUsed' in existing()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['paidUntil', 'lastRedeemedCode', 'freeUsed', 'updatedAt']) &&
+                    incoming().freeUsed == 0
+                  )
+                ) &&
+                incoming().lastRedeemedCode is string &&
+                isValidCodeId(incoming().lastRedeemedCode) &&
+                exists(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)) &&
+                get(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)).data.used == false &&
+                getAfter(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)).data.used == true &&
+                getAfter(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)).data.usedBy == request.auth.uid &&
+                incoming().paidUntil is timestamp &&
+                incoming().paidUntil > request.time &&
+                (
+                  (
+                    existing().paidUntil is timestamp &&
+                    existing().paidUntil > request.time &&
+                    incoming().paidUntil <= existing().paidUntil + duration.value(get(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)).data.durationDays + 1, 'd')
+                  ) ||
+                  (
+                    (existing().paidUntil == null || (existing().paidUntil is timestamp && existing().paidUntil <= request.time)) &&
+                    incoming().paidUntil <= request.time + duration.value(get(/databases/$(database)/documents/codes/$(incoming().lastRedeemedCode)).data.durationDays + 1, 'd')
+                  )
+                )
+              ) ||
+              // Action 3: Consume 1 free trial generation (strictly monotonic increment up to 3)
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['freeUsed', 'updatedAt']) &&
+                incoming().paidUntil == existing().paidUntil &&
+                incoming().lastRedeemedCode == existing().lastRedeemedCode &&
+                (
+                  (
+                    ('freeUsed' in existing()) &&
+                    existing().freeUsed is int &&
+                    existing().freeUsed >= 0 &&
+                    existing().freeUsed < 3 &&
+                    incoming().freeUsed == existing().freeUsed + 1
+                  ) ||
+                  (
+                    !('freeUsed' in existing()) &&
+                    incoming().freeUsed == 1
+                  )
+                )
+              ) ||
+              // Action 4: One-time backfill of freeUsed: 0 on legacy user docs
+              (
+                !('freeUsed' in existing()) &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['freeUsed', 'updatedAt']) &&
+                incoming().paidUntil == existing().paidUntil &&
+                incoming().lastRedeemedCode == existing().lastRedeemedCode &&
+                incoming().freeUsed == 0
+              )
+            )
+          )
+        );
+
+      allow delete: if isValidId(userId) && isSuperAdmin();
+    }
+
+    match /codes/{codeId} {
+      allow get: if isValidCodeId(codeId) && isSignedIn();
+      allow list: if isSuperAdmin();
+
+      allow create: if isValidCodeId(codeId) &&
+        isSuperAdmin() &&
+        isValidCode(incoming(), codeId) &&
+        incoming().used == false &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().usedBy == null &&
+        incoming().usedByEmail == null &&
+        incoming().usedAt == null;
+
+      allow update: if isValidCodeId(codeId) &&
+        isValidCode(incoming(), codeId) &&
+        incoming().code == existing().code &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isSuperAdmin() ||
+          (
+            isSignedIn() &&
+            existing().used == false &&
+            incoming().used == true &&
+            incoming().usedBy == request.auth.uid &&
+            incoming().usedByEmail == request.auth.token.email &&
+            incoming().usedAt == request.time &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['used', 'usedBy', 'usedByEmail', 'usedAt']) &&
+            getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastRedeemedCode == codeId &&
+            getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.paidUntil is timestamp &&
+            getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.paidUntil > request.time
+          )
+        );
+
+      allow delete: if isValidCodeId(codeId) && isSuperAdmin();
+    }
+  }
+}

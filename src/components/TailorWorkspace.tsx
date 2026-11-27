@@ -16,6 +16,7 @@ import {
   buildCoverLetterFromProfile,
   buildCvFromProfile,
 } from '../data/presets';
+import { useAuth } from '../contexts/AuthContext';
 import type {
   ApplicationStatus,
   ApplicationTone,
@@ -30,6 +31,7 @@ import { postJson } from '../utils/api';
 import { exportCombinedPdf } from '../utils/pdfExport';
 import { CoverLetterSheet } from './CoverLetterSheet';
 import { CvDocumentSheet } from './CvDocumentSheet';
+import { LicenseGateCard } from './LicenseGateCard';
 
 type ResultSubTab = 'analysis' | 'cv' | 'letter';
 
@@ -54,12 +56,16 @@ interface TailorWorkspaceProps {
   activeStatus: ApplicationStatus;
   onChangeStatus: (status: ApplicationStatus) => void;
   onSaveApplication: () => void;
+  onUpdateProfile: (next: CandidateProfile) => void;
+  onSyncCvToProfile: (cv: TailoredCv) => void;
   onGoToProfile: () => void;
 }
 
 export function TailorWorkspace({
   profile,
   onUpdatePhoto,
+  onUpdateProfile,
+  onSyncCvToProfile,
   templateConfig,
   onChangeTemplateConfig,
   jobDescription,
@@ -80,6 +86,14 @@ export function TailorWorkspace({
   onSaveApplication,
   onGoToProfile,
 }: TailorWorkspaceProps) {
+  const {
+    firebaseUser,
+    hasPaidAccess,
+    freeRemaining,
+    canGenerate,
+    consumeFreeGeneration,
+    getIdToken,
+  } = useAuth();
   const [subTab, setSubTab] = useState<ResultSubTab>('cv');
   const [inputExpanded, setInputExpanded] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -106,6 +120,16 @@ export function TailorWorkspace({
   );
 
   const handleTailor = async () => {
+    if (!firebaseUser) {
+      setError('يرجى تسجيل الدخول بحساب Google في البطاقة بالأعلى للحصول على 3 محاولات مجانية.');
+      return;
+    }
+    if (!canGenerate) {
+      setError(
+        'LIMIT_REACHED: استنفدت المحاولات المجانية الـ 3 أو انتهى اشتراكك. ملفاتك المحفوظة لا تزال متاحة في "طلباتي المحفوظة"، ولإنشاء ملفات جديدة يرجى إدخال كود تفعيل في البطاقة بالأعلى.'
+      );
+      return;
+    }
     if (!profile.fullName.trim()) {
       setError('يرجى إدخال اسمك وبياناتك في صفحة "ملفي الشخصي" أولاً.');
       return;
@@ -119,16 +143,24 @@ export function TailorWorkspace({
     setError(null);
 
     try {
-      const data = await postJson<TailoredPackage>('/api/tailor', {
-        profile,
-        jobDescription,
-        targetCompany: targetCompany.trim(),
-        targetRole: targetRole.trim(),
-        language,
-        tone,
-      });
+      const token = await getIdToken();
+      const data = await postJson<TailoredPackage>(
+        '/api/tailor',
+        {
+          profile,
+          jobDescription,
+          targetCompany: targetCompany.trim(),
+          targetRole: targetRole.trim(),
+          language,
+          tone,
+        },
+        token
+      );
 
       onChangePackage(data);
+      if (!hasPaidAccess && freeRemaining > 0) {
+        await consumeFreeGeneration();
+      }
       setLastTailoredJobText(jobDescription);
       setInputExpanded(false);
       setSubTab('cv');
@@ -145,19 +177,34 @@ export function TailorWorkspace({
   const handleRefine = async (customPrompt?: string) => {
     const instruction = (customPrompt ?? refineInstruction).trim();
     if (!instruction || !activePackage) return;
+    if (!firebaseUser) {
+      setError('يرجى تسجيل الدخول بحساب Google أولاً.');
+      return;
+    }
+    if (!canGenerate) {
+      setError(
+        'LIMIT_REACHED: استنفدت المحاولات المجانية الـ 3 أو انتهى اشتراكك. أدخل كود تفعيل جديداً للمتابعة.'
+      );
+      return;
+    }
 
     setIsRefining(true);
     setError(null);
     try {
+      const token = await getIdToken();
       const targetSection = subTab === 'cv' ? 'cv' : subTab === 'letter' ? 'coverLetter' : 'both';
-      const data = await postJson<TailoredPackage>('/api/refine', {
-        profile,
-        jobDescription,
-        currentPackage: activePackage,
-        targetSection,
-        instruction,
-        language,
-      });
+      const data = await postJson<TailoredPackage>(
+        '/api/refine',
+        {
+          profile,
+          jobDescription,
+          currentPackage: activePackage,
+          targetSection,
+          instruction,
+          language,
+        },
+        token
+      );
 
       onChangePackage(data);
       if (!customPrompt) setRefineInstruction('');
@@ -203,6 +250,8 @@ export function TailorWorkspace({
 
   return (
     <div className="space-y-6">
+      <LicenseGateCard />
+
       {/* Simple 1-2 Step Guided Intro Banner */}
       <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg no-print">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 dark:border-[#2A3B56]">
@@ -571,9 +620,13 @@ export function TailorWorkspace({
             isTailored={Boolean(activePackage)}
             onChangeTemplateConfig={onChangeTemplateConfig}
             onUpdatePhoto={onUpdatePhoto}
+            onUpdateProfile={onUpdateProfile}
+            onSyncCvToProfile={onSyncCvToProfile}
             onUpdateCv={(nextCv) => {
               if (activePackage) {
                 onChangePackage({ ...activePackage, tailoredCv: nextCv });
+              } else {
+                onSyncCvToProfile(nextCv);
               }
             }}
           />
