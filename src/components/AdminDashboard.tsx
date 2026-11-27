@@ -163,7 +163,7 @@ export function AdminDashboard() {
   };
 
   const handleCopyForWhatsapp = async (item: LicenseCodeDoc) => {
-    const text = `كود التفعيل الخاص بك في مساعد أوسبيلدونغ:\n${item.code}\n(صالح لمدة ${item.durationDays} يوماً - يُستخدم لمرة واحدة فقط بعد تسجيل الدخول بحساب Google)`;
+    const text = `${item.code}`;
     await navigator.clipboard.writeText(text);
     setCopiedCode(item.code);
     setTimeout(() => setCopiedCode(null), 1800);
