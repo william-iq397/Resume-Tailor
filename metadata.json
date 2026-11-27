@@ -1,0 +1,6 @@
+{
+  "name": "Ausbildung Studio",
+  "description": "Tailor German Ausbildung CVs (Lebenslauf) and DIN 5008 cover letters (Anschreiben) to specific job descriptions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
