@@ -8,6 +8,22 @@ export type DocumentTemplateId = 'europass_ats' | 'classic_berlin' | 'minimalist
 
 export type TemplateAccentId = 'europass' | 'slate' | 'pine' | 'burgundy';
 
+export type CertificateType = 'high_school' | 'german_cert';
+
+export interface CandidateCertificate {
+  type: CertificateType;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+  uploadedAt: string;
+}
+
+export interface CandidateCertificatesMap {
+  high_school: CandidateCertificate | null;
+  german_cert: CandidateCertificate | null;
+}
+
 export interface DocumentTemplateConfig {
   templateId: DocumentTemplateId;
   accent: TemplateAccentId;
@@ -141,4 +157,49 @@ export interface SavedApplication {
   templateConfig?: DocumentTemplateConfig;
   jobDescription: string;
   packageData: TailoredPackage;
+}
+
+export interface AusbildungOpportunity {
+  id: string;
+  source: 'arbeitsagentur' | 'url';
+  referenznummer?: string;
+  title: string;
+  occupation: string;
+  companyName: string;
+  location: string;
+  startDate?: string;
+  publishedDate?: string;
+  externalUrl?: string;
+  description?: string;
+  companyEmail?: string;
+  detectedEmails?: string[];
+  firstSeenAt?: string;
+}
+
+export interface OpportunityMatchResult {
+  score: number;
+  isHighMatch: boolean;
+  matchedAppId: string | null;
+  matchedAppLabel: string | null;
+  matchedAppScore: number;
+  reasons: string[];
+}
+
+export interface MatchNotification {
+  id: string;
+  opportunityId: string;
+  title: string;
+  companyName: string;
+  location: string;
+  matchScore: number;
+  matchedAppLabel: string | null;
+  isNewListing: boolean;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface PreparedEmailDraft {
+  toEmail: string;
+  subject: string;
+  body: string;
 }

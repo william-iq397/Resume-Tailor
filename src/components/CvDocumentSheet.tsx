@@ -15,10 +15,12 @@ import {
 } from 'lucide-react';
 import { getAccentMeta } from '../data/presets';
 import type {
+  CandidateCertificatesMap,
   CandidateProfile,
   DocumentTemplateConfig,
   TailoredCv,
 } from '../types/ausbildung';
+import { getUploadedAnlagenLabels } from '../utils/certificateStorage';
 import { formatCvAsText } from '../utils/documentExport';
 import { exportCvToPdf } from '../utils/pdfExport';
 import { TemplateControlsBar } from './TemplateControlsBar';
@@ -26,6 +28,7 @@ import { TemplateControlsBar } from './TemplateControlsBar';
 interface CvDocumentSheetProps {
   cv: TailoredCv;
   profile: CandidateProfile;
+  certificates?: CandidateCertificatesMap;
   companyName: string;
   templateConfig: DocumentTemplateConfig;
   isTailored: boolean;
@@ -63,6 +66,7 @@ async function readAndResizePhoto(file: File): Promise<string> {
 export function CvDocumentSheet({
   cv,
   profile,
+  certificates,
   companyName,
   templateConfig,
   isTailored,
@@ -82,6 +86,7 @@ export function CvDocumentSheet({
   const accent = getAccentMeta(templateConfig.accent);
   const isEuropass = templateConfig.templateId === 'europass_ats';
   const isBauhaus = templateConfig.templateId === 'minimalist_bauhaus';
+  const anlagenLabels = certificates ? getUploadedAnlagenLabels(certificates) : [];
 
   const handleCopy = async () => {
     const text = formatCvAsText(cv, profile);
@@ -93,7 +98,7 @@ export function CvDocumentSheet({
   const handleExportPdf = async () => {
     setIsExportingPdf(true);
     try {
-      await exportCvToPdf(cv, profile, templateConfig, companyName);
+      await exportCvToPdf(cv, profile, templateConfig, companyName, certificates);
     } finally {
       setIsExportingPdf(false);
     }
@@ -919,6 +924,18 @@ export function CvDocumentSheet({
               ) : (
                 <p className="text-sm text-slate-700">{cv.interests}</p>
               )}
+            </section>
+          )}
+          {/* 06. Anlagen (ONLY shown if certificates are uploaded) */}
+          {anlagenLabels.length > 0 && (
+            <section>
+              <h3
+                className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-2"
+                style={{ color: accent.hex }}
+              >
+                Anlagen
+              </h3>
+              <p className="text-sm text-slate-700">{anlagenLabels.join(', ')}</p>
             </section>
           )}
         </div>

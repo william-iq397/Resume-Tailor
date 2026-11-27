@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type {
   ApplicationStatus,
   ApplicationTone,
+  CandidateCertificatesMap,
   CandidateProfile,
   DocumentTemplateConfig,
   OutputLanguage,
@@ -36,6 +37,7 @@ type ResultSubTab = 'analysis' | 'cv' | 'letter';
 
 interface TailorWorkspaceProps {
   profile: CandidateProfile;
+  certificates: CandidateCertificatesMap;
   onUpdatePhoto: (photoUrl: string) => void;
   templateConfig: DocumentTemplateConfig;
   onChangeTemplateConfig: (next: DocumentTemplateConfig) => void;
@@ -55,13 +57,16 @@ interface TailorWorkspaceProps {
   activeStatus: ApplicationStatus;
   onChangeStatus: (status: ApplicationStatus) => void;
   onSaveApplication: () => void;
+  onAutoSavePackage: (pkg: TailoredPackage, jobText: string) => void;
   onUpdateProfile: (next: CandidateProfile) => void;
   onSyncCvToProfile: (cv: TailoredCv) => void;
   onGoToProfile: () => void;
+  onGoToArchive: () => void;
 }
 
 export function TailorWorkspace({
   profile,
+  certificates,
   onUpdatePhoto,
   onUpdateProfile,
   onSyncCvToProfile,
@@ -83,7 +88,9 @@ export function TailorWorkspace({
   activeStatus,
   onChangeStatus,
   onSaveApplication,
+  onAutoSavePackage,
   onGoToProfile,
+  onGoToArchive,
 }: TailorWorkspaceProps) {
   const {
     firebaseUser,
@@ -157,10 +164,13 @@ export function TailorWorkspace({
       );
 
       onChangePackage(data);
+      onAutoSavePackage(data, jobDescription);
       if (!hasPaidAccess && freeRemaining > 0) {
         await consumeFreeGeneration();
       }
       setLastTailoredJobText(jobDescription);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000);
       setInputExpanded(false);
       setSubTab('cv');
       setTimeout(() => {
@@ -222,7 +232,8 @@ export function TailorWorkspace({
         previewLetter,
         profile,
         templateConfig,
-        effectiveCompany
+        effectiveCompany,
+        certificates
       );
     } finally {
       setIsExportingCombined(false);
@@ -524,7 +535,15 @@ export function TailorWorkspace({
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap"
             >
               <BookmarkCheck className="h-4 w-4" />
-              {justSaved ? 'تم الحفظ' : activeAppId ? 'تحديث المحفوظ' : 'حفظ الطلب'}
+              {justSaved ? 'تم الحفظ في طلباتي' : activeAppId ? 'تحديث المحفوظ' : 'حفظ الطلب'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onGoToArchive}
+              className="px-3 py-2 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
+            >
+              عرض طلباتي المحفوظة
             </button>
           </div>
         </div>
@@ -589,6 +608,7 @@ export function TailorWorkspace({
           <CvDocumentSheet
             cv={previewCv}
             profile={profile}
+            certificates={certificates}
             companyName={effectiveCompany}
             templateConfig={templateConfig}
             isTailored={Boolean(activePackage)}

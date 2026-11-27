@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
   signOut,
@@ -28,9 +29,12 @@ import {
   SUPER_ADMIN_EMAIL,
   auth,
   db,
+  gmailProvider,
   googleProvider,
   handleFirestoreError,
 } from '../firebase';
+
+let cachedGmailToken: string | null = null;
 
 export const FREE_QUOTA_LIMIT = 3;
 
@@ -56,8 +60,12 @@ interface AuthContextValue {
   freeRemaining: number;
   canGenerate: boolean;
   authError: string | null;
+  hasGmailAccess: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
+  connectGmail: () => Promise<string>;
+  getGmailAccessToken: () => string | null;
+  clearGmailToken: () => void;
   redeemLicenseCode: (code: string) => Promise<{ paidUntilDate: Date; durationDays: number }>;
   consumeFreeGeneration: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
@@ -70,11 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userDoc, setUserDoc] = useState<UserAccountDoc | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [hasGmailAccess, setHasGmailAccess] = useState<boolean>(() => Boolean(cachedGmailToken));
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (!user) {
+        cachedGmailToken = null;
+        setHasGmailAccess(false);
         setUserDoc(null);
         setAuthReady(true);
       }
@@ -200,7 +211,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = useCallback(async () => {
     setAuthError(null);
+    cachedGmailToken = null;
+    setHasGmailAccess(false);
     await signOut(auth);
+  }, []);
+
+  const connectGmail = useCallback(async (): Promise<string> => {
+    setAuthError(null);
+    const result = await signInWithPopup(auth, gmailProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error('لم يتم منح إذن إرسال البريد عبر Gmail. يرجى المحاولة مجدداً والموافقة على الصلاحية.');
+    }
+    cachedGmailToken = credential.accessToken;
+    setHasGmailAccess(true);
+    return cachedGmailToken;
+  }, []);
+
+  const getGmailAccessToken = useCallback(() => cachedGmailToken, []);
+
+  const clearGmailToken = useCallback(() => {
+    cachedGmailToken = null;
+    setHasGmailAccess(false);
   }, []);
 
   const redeemLicenseCode = useCallback(
@@ -319,8 +351,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         freeRemaining,
         canGenerate,
         authError,
+        hasGmailAccess,
         signInWithGoogle,
         signOutUser,
+        connectGmail,
+        getGmailAccessToken,
+        clearGmailToken,
         redeemLicenseCode,
         consumeFreeGeneration,
         getIdToken,

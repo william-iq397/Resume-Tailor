@@ -658,6 +658,357 @@ ${JSON.stringify(currentPackage, null, 2)}`,
     }
   });
 
+  function extractEmailsFromText(text: string): string[] {
+    if (!text) return [];
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const blockedDomains = ['example.com', 'example.de', 'sentry.io', 'wixpress.com', 'w3.org'];
+    const blockedExts = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.css', '.js'];
+    const unique = new Set<string>();
+    for (const raw of matches) {
+      const email = raw.trim().replace(/[.,;:!?)]+$/, '');
+      const lower = email.toLowerCase();
+      if (blockedDomains.some((d) => lower.endsWith(d))) continue;
+      if (blockedExts.some((ext) => lower.endsWith(ext))) continue;
+      unique.add(email);
+    }
+    return Array.from(unique);
+  }
+
+  function isSafePublicHttpUrl(rawUrl: string): boolean {
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0' ||
+        host === '::1' ||
+        host.endsWith('.local') ||
+        host.startsWith('10.') ||
+        host.startsWith('192.168.') ||
+        host.startsWith('169.254.') ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+      ) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function extractReadableHtml(html: string): { title: string; text: string; emails: string[] } {
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+    const mailtoMatches = Array.from(html.matchAll(/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi)).map(
+      (m) => m[1]
+    );
+
+    const withoutScripts = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+      .replace(/<\/(p|div|li|h1|h2|h3|h4|br|tr|section|article)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&uuml;/g, 'ü')
+      .replace(/&auml;/g, 'ä')
+      .replace(/&ouml;/g, 'ö')
+      .replace(/&szlig;/g, 'ß')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    const textEmails = extractEmailsFromText(withoutScripts);
+    const allEmails = Array.from(new Set([...mailtoMatches, ...textEmails]));
+
+    return {
+      title,
+      text: withoutScripts.slice(0, 14000),
+      emails: allEmails,
+    };
+  }
+
+  app.get("/api/ausbildung/search", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const city = typeof req.query.city === "string" ? req.query.city.trim() : "";
+      const radius = typeof req.query.radius === "string" ? req.query.radius.trim() : "50";
+      const page = typeof req.query.page === "string" ? req.query.page.trim() : "1";
+
+      const params = new URLSearchParams({
+        angebotsart: "4",
+        size: "15",
+        page: String(Math.max(1, Number(page) || 1)),
+      });
+      if (q) params.set("was", q);
+      if (city) {
+        params.set("wo", city);
+        params.set("umkreis", String(Math.min(200, Math.max(5, Number(radius) || 50))));
+      }
+
+      const apiRes = await fetch(
+        `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs?${params.toString()}`,
+        {
+          headers: {
+            "X-API-Key": "jobboerse-jobsuche",
+            Accept: "application/json",
+          },
+          signal: AbortSignal.timeout(12000),
+        }
+      );
+
+      if (!apiRes.ok) {
+        res.status(502).json({
+          error: `تعذر جلب إعلانات التدريب من Arbeitsagentur حالياً (${apiRes.status}).`,
+        });
+        return;
+      }
+
+      const raw = (await apiRes.json()) as {
+        maxErgebnisse?: number;
+        ergebnisliste?: Array<{
+          referenznummer?: string;
+          stellenangebotsTitel?: string;
+          hauptberuf?: string;
+          firma?: string;
+          externeURL?: string;
+          datumErsteVeroeffentlichung?: string;
+          eintrittszeitraum?: { von?: string };
+          stellenlokationen?: Array<{
+            adresse?: { plz?: string; ort?: string };
+          }>;
+        }>;
+      };
+
+      const items = (raw.ergebnisliste || []).map((job, idx) => {
+        const ref = job.referenznummer || `ba-${Date.now()}-${idx}`;
+        const addr = job.stellenlokationen?.[0]?.adresse;
+        const location = [addr?.plz, addr?.ort].filter(Boolean).join(" ") || "Deutschland";
+        return {
+          id: `aa-${ref}`,
+          source: "arbeitsagentur" as const,
+          referenznummer: job.referenznummer || "",
+          title: job.stellenangebotsTitel || job.hauptberuf || "Ausbildung",
+          occupation: job.hauptberuf || job.stellenangebotsTitel || "",
+          companyName: job.firma || "Ausbildungsbetrieb",
+          location,
+          startDate: job.eintrittszeitraum?.von || "",
+          publishedDate: job.datumErsteVeroeffentlichung || "",
+          externalUrl:
+            job.externeURL ||
+            (job.referenznummer
+              ? `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(job.referenznummer)}`
+              : ""),
+        };
+      });
+
+      res.json({
+        total: raw.maxErgebnisse ?? items.length,
+        items,
+      });
+    } catch (err) {
+      handleGeminiError(err, res);
+    }
+  });
+
+  app.get("/api/ausbildung/detail", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const ref = typeof req.query.ref === "string" ? req.query.ref.trim() : "";
+      if (!ref) {
+        res.status(400).json({ error: "معرف الإعلان مطلوب." });
+        return;
+      }
+
+      const b64Ref = Buffer.from(ref, "utf8").toString("base64");
+      const detailRes = await fetch(
+        `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/${encodeURIComponent(b64Ref)}`,
+        {
+          headers: {
+            "X-API-Key": "jobboerse-jobsuche",
+            Accept: "application/json",
+          },
+          signal: AbortSignal.timeout(12000),
+        }
+      );
+
+      if (!detailRes.ok) {
+        res.status(502).json({
+          error: `تعذر جلب تفاصيل إعلان التدريب (${detailRes.status}).`,
+        });
+        return;
+      }
+
+      const d = (await detailRes.json()) as {
+        stellenangebotsTitel?: string;
+        hauptberuf?: string;
+        firma?: string;
+        stellenangebotsBeschreibung?: string;
+        geforderterBildungsabschluss?: string;
+        vertragsdauer?: string;
+        verguetungsangabe?: string;
+        eintrittszeitraum?: { von?: string };
+        externeURL?: string;
+        stellenlokationen?: Array<{
+          adresse?: { strasse?: string; plz?: string; ort?: string };
+        }>;
+      };
+
+      const addr = d.stellenlokationen?.[0]?.adresse;
+      const fullAddress = [addr?.strasse, [addr?.plz, addr?.ort].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .join(", ");
+
+      const parts = [
+        d.stellenangebotsTitel ? `Titel: ${d.stellenangebotsTitel}` : "",
+        d.hauptberuf ? `Beruf: ${d.hauptberuf}` : "",
+        d.firma ? `Unternehmen: ${d.firma}` : "",
+        fullAddress ? `Standort: ${fullAddress}` : "",
+        d.eintrittszeitraum?.von ? `Ausbildungsbeginn: ${d.eintrittszeitraum.von}` : "",
+        d.geforderterBildungsabschluss ? `Schulabschluss: ${d.geforderterBildungsabschluss}` : "",
+        d.stellenangebotsBeschreibung || "",
+      ].filter(Boolean);
+
+      let description = parts.join("\n");
+      let detectedEmails = extractEmailsFromText(description);
+
+      // If no email in description and external URL is present, inspect the linked posting cleanly
+      if (detectedEmails.length === 0 && d.externeURL && isSafePublicHttpUrl(d.externeURL)) {
+        try {
+          const extRes = await fetch(d.externeURL, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; AusbildungStudio/1.0)",
+              Accept: "text/html,application/xhtml+xml",
+            },
+            signal: AbortSignal.timeout(6500),
+          });
+          if (extRes.ok) {
+            const html = await extRes.text();
+            const extracted = extractReadableHtml(html);
+            detectedEmails = extracted.emails;
+            if (extracted.text.length > description.length && description.length < 400) {
+              description = `${description}\n\n${extracted.text.slice(0, 6000)}`;
+            }
+          }
+        } catch {
+          // External portal may block scraping; keep Arbeitsagentur description intact
+        }
+      }
+
+      res.json({
+        title: d.stellenangebotsTitel || d.hauptberuf || "Ausbildung",
+        occupation: d.hauptberuf || "",
+        companyName: d.firma || "",
+        location: [addr?.plz, addr?.ort].filter(Boolean).join(" "),
+        startDate: d.eintrittszeitraum?.von || "",
+        externalUrl:
+          d.externeURL ||
+          `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(ref)}`,
+        description,
+        detectedEmails,
+      });
+    } catch (err) {
+      handleGeminiError(err, res);
+    }
+  });
+
+  app.post("/api/ausbildung/fetch-url", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body ?? {};
+      if (!url || typeof url !== "string" || !isSafePublicHttpUrl(url.trim())) {
+        res.status(400).json({ error: "يرجى إدخال رابط موقع صالح يبدأ بـ https:// أو http://." });
+        return;
+      }
+
+      const targetUrl = url.trim();
+      const pageRes = await fetch(targetUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!pageRes.ok) {
+        res.status(502).json({
+          error: `تعذر قراءة محتوى الرابط (رمز ${pageRes.status}). بعض المواقع تحظر السحب التلقائي؛ يمكنك نسخ النص ولصقه يدوياً.`,
+        });
+        return;
+      }
+
+      const html = await pageRes.text();
+      const extracted = extractReadableHtml(html);
+
+      if (!extracted.text || extracted.text.length < 80) {
+        res.status(422).json({
+          error: "الموقع يعتمد على جافاسكربت أو محمي. يرجى نسخ نص الإعلان من الصفحة ولصقه في صفحة التجهيز.",
+        });
+        return;
+      }
+
+      res.json({
+        title: extracted.title || "Ausbildungsangebot",
+        description: extracted.text,
+        detectedEmails: extracted.emails,
+        externalUrl: targetUrl,
+      });
+    } catch (err) {
+      handleGeminiError(err, res);
+    }
+  });
+
+  app.post("/api/ausbildung/prepare-email", requireFirebaseAuth, async (req: Request, res: Response) => {
+    try {
+      const { profile, tailoredPackage, jobDescription, detectedEmails, certificateLabels } =
+        req.body ?? {};
+
+      if (!tailoredPackage || !profile) {
+        res.status(400).json({ error: "بيانات الطلب المعدل أو الملف الشخصي غير مكتملة." });
+        return;
+      }
+
+      const ai = getGeminiClient();
+      const EMAIL_DRAFT_SCHEMA = {
+        type: Type.OBJECT,
+        properties: {
+          companyEmail: { type: Type.STRING },
+          subject: { type: Type.STRING },
+          body: { type: Type.STRING },
+        },
+        required: ["companyEmail", "subject", "body"],
+      };
+
+      const systemInstruction = `You draft concise, professional German job application emails (Bewerbung per E-Mail) for an Ausbildung position.
+Rules:
+1. companyEmail: Pick the most appropriate HR/Bewerbung email address from the detected emails or job description. If none exists, return an empty string "". Never invent a fake email.
+2. subject: Clear DIN-style German subject line (e.g., "Bewerbung um einen Ausbildungsplatz als [Role] – [Candidate Name]").
+3. body: Polite, concise German email body (100-150 words), addressing the contact person if known ("Sehr geehrte Frau ... / Sehr geehrter Herr ..."), otherwise "Sehr geehrte Damen und Herren,", mentioning the attached documents (Anschreiben, Lebenslauf${Array.isArray(certificateLabels) && certificateLabels.length > 0 ? `, ${certificateLabels.join(', ')}` : ''}), and closing with "Mit freundlichen Grüßen" + the candidate's full name and phone number. Do NOT mention certificates that are not in certificateLabels.`;
+
+      const rawText = await generateWithRetry(ai, {
+        contents: `CANDIDATE: ${profile.fullName || ""}, Phone: ${profile.phone || ""}, Email: ${profile.email || ""}
+ROLE: ${tailoredPackage?.jobAnalysis?.roleTitle || ""}
+COMPANY: ${tailoredPackage?.jobAnalysis?.companyName || ""}
+RECIPIENT CONTACT: ${tailoredPackage?.jobAnalysis?.recipientContact || ""}
+DETECTED EMAILS IN AD: ${JSON.stringify(detectedEmails || [])}
+UPLOADED CERTIFICATES TO MENTION AS ATTACHED: ${JSON.stringify(certificateLabels || [])}
+JOB AD EXCERPT:
+${String(jobDescription || "").slice(0, 4000)}`,
+        systemInstruction,
+        responseSchema: EMAIL_DRAFT_SCHEMA,
+      });
+
+      res.json(JSON.parse(rawText));
+    } catch (err) {
+      handleGeminiError(err, res);
+    }
+  });
+
   // Ensure any unknown /api/* route returns JSON instead of falling through to HTML SPA fallback
   app.all("/api/{*path}", (_req: Request, res: Response) => {
     res.status(404).json({ error: "API route not found." });

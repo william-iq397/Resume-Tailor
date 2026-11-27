@@ -1,6 +1,8 @@
 import {
+  Compass,
   FileText,
   FolderKanban,
+  HelpCircle,
   LogIn,
   LogOut,
   ShieldCheck,
@@ -10,13 +12,15 @@ import {
 import { FREE_QUOTA_LIMIT, useAuth } from '../contexts/AuthContext';
 import type { CandidateProfile } from '../types/ausbildung';
 
-export type WorkspaceTab = 'tailor' | 'profile' | 'archive' | 'admin';
+export type WorkspaceTab = 'tailor' | 'finder' | 'profile' | 'archive' | 'admin';
 
 interface SidebarProps {
   activeTab: WorkspaceTab;
   onSelectTab: (tab: WorkspaceTab) => void;
   profile: CandidateProfile;
   savedCount: number;
+  highMatchCount?: number;
+  onOpenTutorial: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
@@ -26,6 +30,8 @@ export function Sidebar({
   onSelectTab,
   profile,
   savedCount,
+  highMatchCount = 0,
+  onOpenTutorial,
   mobileOpen,
   onCloseMobile,
 }: SidebarProps) {
@@ -41,14 +47,18 @@ export function Sidebar({
 
   const navItems: { id: WorkspaceTab; label: string; icon: typeof FileText; count?: number }[] = [
     { id: 'tailor', label: 'تجهيز التقديم', icon: FileText },
+    {
+      id: 'finder',
+      label: 'البحث والتقديم التلقائي',
+      icon: Compass,
+      count: highMatchCount > 0 ? highMatchCount : undefined,
+    },
     { id: 'profile', label: 'ملفي الشخصي', icon: UserCheck },
     { id: 'archive', label: 'طلباتي المحفوظة', icon: FolderKanban, count: savedCount },
     ...(isSuperAdmin
       ? [{ id: 'admin' as WorkspaceTab, label: 'لوحة المشرف', icon: ShieldCheck }]
       : []),
   ];
-
-  const primaryLanguage = profile.languages[0];
 
   const sidebarBody = (
     <div className="flex h-full flex-col justify-between bg-white dark:bg-[#162133] border-l border-slate-200 dark:border-[#2A3B56] w-[260px]">
@@ -115,6 +125,18 @@ export function Sidebar({
       </div>
 
       <div className="border-t border-slate-200 dark:border-[#2A3B56] p-4 bg-[#F8FAFC] dark:bg-[#121C2C] space-y-3">
+        <button
+          type="button"
+          onClick={() => {
+            onOpenTutorial();
+            onCloseMobile();
+          }}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-950/80 rounded-lg transition-colors"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          شرح التطبيق (جولة سريعة)
+        </button>
+
         <div className="pt-3 border-t border-slate-200 dark:border-[#2A3B56]">
           {firebaseUser ? (
             <div className="space-y-1.5">

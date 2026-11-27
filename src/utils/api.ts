@@ -91,3 +91,60 @@ export async function postJson<T>(
 
   throw new Error('تعذر إتمام الطلب. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
 }
+
+export async function getJson<T>(url: string, token?: string | null): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    redirect: 'manual',
+    headers,
+  });
+
+  if (
+    response.type === 'opaqueredirect' ||
+    (response.status >= 300 && response.status < 400) ||
+    response.status === 401
+  ) {
+    throw new Error(
+      'يرجى تسجيل الدخول بحساب Google أولاً أو تحديث الصفحة ثم المحاولة مجدداً.'
+    );
+  }
+
+  const rawText = await response.text();
+  const trimmed = rawText.trim();
+  const isHtml =
+    trimmed.slice(0, 120).toLowerCase().startsWith('<!doctype') ||
+    trimmed.slice(0, 120).toLowerCase().startsWith('<html');
+
+  if (isHtml) {
+    throw new Error(`الخادم الخلفي أعاد استجابة غير متوقعة (رمز ${response.status}).`);
+  }
+
+  let parsed: unknown = null;
+  try {
+    parsed = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    throw new Error(`استجابة غير صالحة من الخادم (رمز ${response.status}).`);
+  }
+
+  if (!response.ok) {
+    const errMessage =
+      parsed &&
+      typeof parsed === 'object' &&
+      'error' in parsed &&
+      typeof (parsed as { error?: unknown }).error === 'string'
+        ? (parsed as { error: string }).error
+        : `فشل الطلب برمز ${response.status}.`;
+    throw new Error(errMessage);
+  }
+
+  return parsed as T;
+}
