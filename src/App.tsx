@@ -254,7 +254,7 @@ export default function App() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen flex bg-[#F3F6FA] dark:bg-[#0E1624] text-slate-900 dark:text-[#EEF2F8] transition-colors"
+      className="min-h-screen max-w-7xl mx-auto flex bg-[#F3F6FA] dark:bg-[#0E1624] text-slate-900 dark:text-[#EEF2F8] transition-colors"
     >
       <Sidebar
         activeTab={activeTab}

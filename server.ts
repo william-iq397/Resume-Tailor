@@ -7,8 +7,8 @@ import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MODEL_NAME = "gemini-3.1-flash-lite";      // stable, less crowded (if it's in your list)
-const FALLBACK_MODEL_NAME = "gemini-4-hydrogen";
+const MODEL_NAME = "gemini-2.5-flash";
+const FALLBACK_MODEL_NAME = "gemini-2.5-flash-lite";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -379,9 +379,7 @@ function sanitizeProfileForAi(profile: Record<string, unknown>) {
   return rest;
 }
 
-async function startServer() {
-  const app = express();
-  const port = Number(process.env.PORT) || 3000;
+const app = express();
 
   app.use(express.json({ limit: "6mb" }));
   app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
@@ -550,6 +548,9 @@ ${JSON.stringify(currentPackage, null, 2)}`,
     next(err);
   });
 
+async function startLocalServer() {
+  const port = Number(process.env.PORT) || 3000;
+
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
@@ -570,4 +571,8 @@ ${JSON.stringify(currentPackage, null, 2)}`,
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startLocalServer();
+}
+
+export default app;
