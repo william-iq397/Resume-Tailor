@@ -408,7 +408,7 @@ export default function App() {
         </header>
 
         {/* Main Viewport */}
-        <main className="flex-1 max-w-[1160px] w-full mx-auto my-6 px-4">
+        <main className="flex-1 max-w-290 w-full mx-auto my-6 px-4">
           {activeTab === 'tailor' && (
             <TailorWorkspace
               profile={profile}

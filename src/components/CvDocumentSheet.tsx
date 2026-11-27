@@ -279,7 +279,7 @@ export function CvDocumentSheet({
       </div>
 
       {/* Deterministic ATS Compatibility Verification Strip */}
-      <div className="bg-white/80 dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 max-w-[820px] mx-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-[#9FB0C7] no-print">
+      <div className="bg-white/80 dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 max-w-205 mx-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-[#9FB0C7] no-print">
         <span className="font-semibold text-slate-900 dark:text-[#EEF2F8]">
           جاهزية القبول في أنظمة الشركات (ATS):
         </span>
@@ -308,7 +308,7 @@ export function CvDocumentSheet({
       {/* Single-Column ATS-Safe Europass / German CV A4 Sheet (always LTR white paper) */}
       <article
         dir="ltr"
-        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 text-left print-only-sheet"
+        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-205 mx-auto text-slate-900 text-left print-only-sheet"
       >
         {(isEuropass || isBauhaus) && (
           <div

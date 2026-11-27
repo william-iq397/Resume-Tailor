@@ -51,7 +51,7 @@ export function Sidebar({
   const primaryLanguage = profile.languages[0];
 
   const sidebarBody = (
-    <div className="flex h-full flex-col justify-between bg-white dark:bg-[#162133] border-l border-slate-200 dark:border-[#2A3B56] w-[260px]">
+    <div className="flex h-full flex-col justify-between bg-white dark:bg-[#162133] border-l border-slate-200 dark:border-[#2A3B56] w-65">
       <div>
         <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-[#2A3B56]">
           <a

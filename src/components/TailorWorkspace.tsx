@@ -606,7 +606,7 @@ export function TailorWorkspace({
           />
 
           {activePackage && (
-            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
+            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-205 mx-auto space-y-3 no-print">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-700 dark:text-[#EEF2F8]">
                   اطلب تعديلاً على السيرة الذاتية:
@@ -673,7 +673,7 @@ export function TailorWorkspace({
           />
 
           {activePackage && (
-            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
+            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-205 mx-auto space-y-3 no-print">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-700 dark:text-[#EEF2F8]">
                   اطلب تعديلاً على رسالة الدافع:

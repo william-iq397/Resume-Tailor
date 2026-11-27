@@ -150,7 +150,7 @@ export function CoverLetterSheet({
       </div>
 
       {showArabicSummary && letter.englishSummary && (
-        <div className="bg-teal-50/70 dark:bg-[#162133] border border-teal-200 dark:border-[#2A3B56] rounded-lg px-5 py-4 max-w-[820px] mx-auto no-print">
+        <div className="bg-teal-50/70 dark:bg-[#162133] border border-teal-200 dark:border-[#2A3B56] rounded-lg px-5 py-4 max-w-205 mx-auto no-print">
           <p className="text-xs font-semibold text-teal-900 dark:text-teal-300 mb-1">
             ملخص محتوى الرسالة بالعربية (لتفهم كل ما كُتب بالألمانية)
           </p>
@@ -163,7 +163,7 @@ export function CoverLetterSheet({
       {/* Single-column ATS-safe Europass / DIN 5008 Anschreiben (always LTR white paper) */}
       <article
         dir="ltr"
-        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 text-left print-only-sheet"
+        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-205 mx-auto text-slate-900 text-left print-only-sheet"
       >
         {(isEuropass || isBauhaus) && (
           <div

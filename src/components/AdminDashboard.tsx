@@ -233,19 +233,19 @@ export function AdminDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-[110px]">
+          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-27.5">
             <p className="text-xs text-slate-500 dark:text-[#9FB0C7]">المستخدمون</p>
             <p className="font-mono-tabular text-lg font-bold text-slate-900 dark:text-[#EEF2F8]">
               {users.length}
             </p>
           </div>
-          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-[110px]">
+          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-27.5">
             <p className="text-xs text-slate-500 dark:text-[#9FB0C7]">اشتراكات فعّالة</p>
             <p className="font-mono-tabular text-lg font-bold text-emerald-700 dark:text-emerald-400">
               {activeUsersCount}
             </p>
           </div>
-          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-[110px]">
+          <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 text-center min-w-27.5">
             <p className="text-xs text-slate-500 dark:text-[#9FB0C7]">أكواد متاحة</p>
             <p className="font-mono-tabular text-lg font-bold text-teal-700 dark:text-teal-300">
               {unusedCodesCount}
