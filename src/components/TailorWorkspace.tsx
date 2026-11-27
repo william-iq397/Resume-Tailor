@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   AlertCircle,
   BookmarkCheck,
@@ -8,6 +8,7 @@ import {
   FileDown,
   Loader2,
   RefreshCw,
+  SlidersHorizontal,
   Sparkles,
 } from 'lucide-react';
 import {
@@ -81,14 +82,16 @@ export function TailorWorkspace({
 }: TailorWorkspaceProps) {
   const [subTab, setSubTab] = useState<ResultSubTab>('cv');
   const [inputExpanded, setInputExpanded] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isExportingCombined, setIsExportingCombined] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refineInstruction, setRefineInstruction] = useState('');
   const [justSaved, setJustSaved] = useState(false);
+  const [lastTailoredJobText, setLastTailoredJobText] = useState<string>('');
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
-  // Live template fallback from Base Profile prior to AI tailoring
   const previewCv: TailoredCv =
     activePackage?.tailoredCv ?? buildCvFromProfile(profile, targetRole);
   const previewLetter: TailoredCoverLetter =
@@ -96,14 +99,19 @@ export function TailorWorkspace({
     buildCoverLetterFromProfile(profile, targetCompany, targetRole);
   const effectiveCompany =
     activePackage?.jobAnalysis.companyName || targetCompany || 'Ausbildung';
+  const isPackageOutdated = Boolean(
+    activePackage &&
+      lastTailoredJobText &&
+      jobDescription.trim() !== lastTailoredJobText.trim()
+  );
 
   const handleTailor = async () => {
     if (!profile.fullName.trim()) {
-      setError('Please enter your name and background in Base Profile before tailoring documents.');
+      setError('يرجى إدخال اسمك وبياناتك في صفحة "ملفي الشخصي" أولاً.');
       return;
     }
     if (!jobDescription.trim()) {
-      setError('Please paste an Ausbildung job description (Stellenanzeige) first.');
+      setError('يرجى لصق نص إعلان التدريب المهني أولاً.');
       return;
     }
 
@@ -121,10 +129,14 @@ export function TailorWorkspace({
       });
 
       onChangePackage(data);
+      setLastTailoredJobText(jobDescription);
       setInputExpanded(false);
       setSubTab('cv');
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unexpected error while tailoring documents.');
+      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تجهيز المستندات.');
     } finally {
       setIsGenerating(false);
     }
@@ -150,7 +162,7 @@ export function TailorWorkspace({
       onChangePackage(data);
       if (!customPrompt) setRefineInstruction('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unexpected error while refining document.');
+      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تعديل المستند.');
     } finally {
       setIsRefining(false);
     }
@@ -180,205 +192,257 @@ export function TailorWorkspace({
   const loadPreset = (presetId: string) => {
     const preset = SAMPLE_JOB_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
-    onChangeTargetCompany(preset.company);
-    onChangeTargetRole(preset.role);
+    onChangeTargetCompany('');
+    onChangeTargetRole('');
     onChangeJobDescription(preset.description);
     setError(null);
   };
 
+  const inputClass =
+    'mt-1 w-full px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600';
+
   return (
     <div className="space-y-6">
-      {/* Job Description Input Panel */}
-      <section className="bg-white border border-slate-200 rounded-lg no-print">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+      {/* Simple 1-2 Step Guided Intro Banner */}
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg no-print">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 dark:border-[#2A3B56]">
           <div>
-            <h1 className="font-display text-lg font-bold text-slate-900">
-              Job Posting &amp; Tailoring Setup
+            <h1 className="font-display text-lg font-bold text-slate-900 dark:text-[#EEF2F8]">
+              تجهيز السيرة الذاتية ورسالة الدافع
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Choose your CV &amp; Cover Letter template below, paste a German Stellenanzeige, and
-              let AI rewrite the title, summary, experiences, and motivation letter for the role.
+            <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5">
+              الخطوة ١: الصق إعلان الوظيفة ← الخطوة ٢: اضغط زر التجهيز ليتم تعديل السيرة والرسالة
+              وحفظها بصيغة PDF.
             </p>
           </div>
           {activePackage && (
             <button
               type="button"
               onClick={() => setInputExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-slate-50 dark:bg-[#1D2B42] hover:bg-slate-100 dark:hover:bg-[#243652] border border-slate-200 dark:border-[#2A3B56] rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
               {inputExpanded ? (
                 <>
                   <ChevronUp className="h-3.5 w-3.5" />
-                  Hide Job Input
+                  إخفاء نص الإعلان
                 </>
               ) : (
                 <>
                   <ChevronDown className="h-3.5 w-3.5" />
-                  Edit Job Input
+                  تغيير إعلان الوظيفة
                 </>
               )}
             </button>
           )}
         </div>
 
-        {inputExpanded && (
+        {(inputExpanded || !activePackage) && (
           <div className="p-6 space-y-5">
             {!profile.fullName.trim() && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-4 py-3 text-sm flex items-center justify-between gap-4">
+              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between gap-4">
                 <span>
-                  Your Base Profile is currently empty. Add your schooling, internships, and
-                  language levels so the documents reflect your real background.
+                  ملفك الشخصي فارغ حالياً. أضف اسمك وشهاداتك وخبراتك أولاً لتظهر في السيرة
+                  الذاتية.
                 </span>
                 <button
                   type="button"
                   onClick={onGoToProfile}
-                  className="text-xs font-semibold text-amber-900 underline whitespace-nowrap shrink-0"
+                  className="text-xs font-semibold underline whitespace-nowrap shrink-0"
                 >
-                  Open Base Profile
+                  فتح ملفي الشخصي
                 </button>
               </div>
             )}
 
-            {/* Quick sample Stellenanzeigen */}
+            {/* Quick Sample Buttons */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 mr-1">Sample Job Ads:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-[#9FB0C7] ml-1">
+                أو جرّب إعلاناً جاهزاً:
+              </span>
               {SAMPLE_JOB_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => loadPreset(preset.id)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors whitespace-nowrap"
+                  className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-slate-50 dark:bg-[#1D2B42] hover:bg-slate-100 dark:hover:bg-[#243652] border border-slate-200 dark:border-[#2A3B56] rounded-md transition-colors whitespace-nowrap"
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700">
-                  Target Company (Optional)
-                </span>
-                <input
-                  type="text"
-                  value={targetCompany}
-                  onChange={(e) => onChangeTargetCompany(e.target.value)}
-                  placeholder="Auto-detected from ad"
-                  className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700">
-                  Target Ausbildungsberuf (Optional)
-                </span>
-                <input
-                  type="text"
-                  value={targetRole}
-                  onChange={(e) => onChangeTargetRole(e.target.value)}
-                  placeholder="Auto-detected from ad"
-                  className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700">Document Language</span>
-                <select
-                  value={language}
-                  onChange={(e) => onChangeLanguage(e.target.value as OutputLanguage)}
-                  className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                >
-                  <option value="de_with_notes">Deutsch + English Summary</option>
-                  <option value="de">Deutsch Only (Standard)</option>
-                  <option value="en">English (International Firm)</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700">Writing Tone</span>
-                <select
-                  value={tone}
-                  onChange={(e) => onChangeTone(e.target.value as ApplicationTone)}
-                  className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                >
-                  <option value="modern">Modern &amp; Motivated</option>
-                  <option value="classic">Classic Formal (DIN Standard)</option>
-                  <option value="technical">Technical &amp; Hands-On</option>
-                </select>
-              </label>
-            </div>
-
             <label className="block">
-              <span className="text-xs font-medium text-slate-700">
-                Job Description (Stellenanzeige)
+              <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                الصق هنا نص إعلان التدريب المهني (Ausbildung) من موقع الشركة أو Arbeitsagentur
               </span>
               <textarea
-                rows={7}
+                rows={6}
+                dir="auto"
                 value={jobDescription}
                 onChange={(e) => onChangeJobDescription(e.target.value)}
-                placeholder="Paste the full German or English Ausbildung job description here (including company address, contact person, tasks, and requirements)..."
-                className="mt-1 w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white"
+                placeholder="انسخ إعلان الوظيفة بالألمانية أو الإنجليزية والصقه هنا..."
+                className="mt-1.5 w-full p-3.5 text-sm bg-slate-50 dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:bg-white dark:focus:bg-[#1D2B42]"
               />
             </label>
 
+            {/* Optional Advanced Settings Accordion */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-[#9FB0C7] hover:text-slate-900 dark:hover:text-white"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                {showAdvanced
+                  ? 'إخفاء الخيارات الإضافية'
+                  : 'خيارات إضافية (تحديد اسم الشركة أو اللغة أو الأسلوب)'}
+              </button>
+
+              {showAdvanced && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-200 dark:border-[#2A3B56]">
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      اسم الشركة (اختياري)
+                    </span>
+                    <input
+                      type="text"
+                      value={targetCompany}
+                      onChange={(e) => onChangeTargetCompany(e.target.value)}
+                      placeholder="يُستخرج تلقائياً"
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      المهنة المطلوبة (اختياري)
+                    </span>
+                    <input
+                      type="text"
+                      value={targetRole}
+                      onChange={(e) => onChangeTargetRole(e.target.value)}
+                      placeholder="تُستخرج تلقائياً"
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      لغة المستندات
+                    </span>
+                    <select
+                      value={language}
+                      onChange={(e) => onChangeLanguage(e.target.value as OutputLanguage)}
+                      className={inputClass}
+                    >
+                      <option value="de_with_notes">ألمانية + شرح بالعربية (موصى به)</option>
+                      <option value="de">ألمانية فقط</option>
+                      <option value="en">إنجليزية (للشركات الدولية)</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      أسلوب الكتابة
+                    </span>
+                    <select
+                      value={tone}
+                      onChange={(e) => onChangeTone(e.target.value as ApplicationTone)}
+                      className={inputClass}
+                    >
+                      <option value="modern">حديث وواضح</option>
+                      <option value="classic">رسمي كلاسيكي</option>
+                      <option value="technical">تقني وعملي</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+            </div>
+
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+              <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg px-4 py-3 text-sm flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-              <p className="text-xs text-slate-500">
-                Uses your Base Profile ({profile.fullName || 'Not set'}) without inventing fake
-                experience.
+              <p className="text-xs text-slate-500 dark:text-[#9FB0C7]">
+                يعتمد على بيانات ({profile.fullName || 'غير محدد'}) الموجودة في ملفك الشخصي فقط.
               </p>
               <button
                 type="button"
                 onClick={handleTailor}
                 disabled={isGenerating || !jobDescription.trim()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyzing &amp; Tailoring...
+                    جاري تحليل الإعلان وتجهيز الملفات...
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Analyze &amp; Tailor Documents
+                    تحليل الإعلان وتجهيز السيرة والرسالة
                   </>
                 )}
               </button>
             </div>
           </div>
         )}
+        {!(inputExpanded || !activePackage) && error && (
+          <div className="px-6 py-4">
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg px-4 py-3 text-sm flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* Loading banner when generating */}
+      {/* Loading banner */}
       {isGenerating && (
-        <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-3 no-print">
-          <div className="flex items-center gap-2.5 text-sm font-medium text-slate-900">
-            <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
+        <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-3 no-print">
+          <div className="flex items-center gap-2.5 text-sm font-medium text-slate-900 dark:text-[#EEF2F8]">
+            <Loader2 className="h-4 w-4 animate-spin text-teal-600 dark:text-teal-400" />
             <span>
-              Analyzing job requirements and rewriting your CV &amp; Motivation Letter template...
+              جاري قراءة متطلبات الشركة وإعادة صياغة السيرة الذاتية ورسالة الدافع لتناسب الوظيفة...
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-            <div className="h-16 bg-slate-100 rounded animate-pulse" />
-            <div className="h-16 bg-slate-100 rounded animate-pulse" />
-            <div className="h-16 bg-slate-100 rounded animate-pulse" />
+            <div className="h-14 bg-slate-100 dark:bg-[#1D2B42] rounded animate-pulse" />
+            <div className="h-14 bg-slate-100 dark:bg-[#1D2B42] rounded animate-pulse" />
+            <div className="h-14 bg-slate-100 dark:bg-[#1D2B42] rounded animate-pulse" />
           </div>
         </div>
       )}
 
+      {/* Outdated or Untailored Notice */}
+      {isPackageOutdated && !isGenerating && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 rounded-lg px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 no-print">
+          <span className="text-sm font-medium">
+            لقد قمت بتغيير نص إعلان الوظيفة. اضغط على الزر لتحديث السيرة الذاتية ورسالة الدافع حسب الإعلان الجديد:
+          </span>
+          <button
+            type="button"
+            onClick={handleTailor}
+            disabled={isGenerating || !jobDescription.trim()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap shrink-0"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            تحديث السيرة للإعلان الجديد
+          </button>
+        </div>
+      )}
+
       {/* Tailored Role Summary & Save/Full-PDF Strip */}
+      <div ref={resultsRef} />
       {activePackage && (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 no-print">
+        <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 no-print">
           <div>
-            <h2 className="font-display text-xl font-bold text-slate-900">
+            <h2 className="font-display text-lg font-bold text-slate-900 dark:text-[#EEF2F8]">
               {activePackage.jobAnalysis.roleTitle}
             </h2>
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-600 mt-1">
-              <span className="font-medium text-slate-900">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-600 dark:text-[#9FB0C7] mt-1">
+              <span className="font-medium text-slate-900 dark:text-[#EEF2F8]">
                 {activePackage.jobAnalysis.companyName}
               </span>
               {activePackage.jobAnalysis.location && (
@@ -391,7 +455,7 @@ export function TailorWorkspace({
                 <>
                   <span aria-hidden="true">·</span>
                   <span className="font-mono-tabular">
-                    Start: {activePackage.jobAnalysis.startDate}
+                    يبدأ: {activePackage.jobAnalysis.startDate}
                   </span>
                 </>
               )}
@@ -406,67 +470,67 @@ export function TailorWorkspace({
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
-              aria-label="Application status"
+              aria-label="حالة الطلب"
               value={activeStatus}
               onChange={(e) => onChangeStatus(e.target.value as ApplicationStatus)}
-              className="px-3 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="px-3 py-2 text-xs font-medium bg-slate-50 dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-800 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
             >
-              <option value="draft">Status: Draft</option>
-              <option value="ready">Status: Ready to Send</option>
-              <option value="applied">Status: Applied</option>
-              <option value="interview">Status: Interview</option>
+              <option value="draft">الحالة: مسودة</option>
+              <option value="ready">الحالة: جاهز للإرسال</option>
+              <option value="applied">الحالة: تم التقديم</option>
+              <option value="interview">الحالة: مقابلة عمل</option>
             </select>
 
             <button
               type="button"
               onClick={handleExportCombined}
               disabled={isExportingCombined}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-800 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
             >
               {isExportingCombined ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <FileDown className="h-3.5 w-3.5" />
               )}
-              Export Full PDF
+              تحميل الملف الكامل PDF
             </button>
 
             <button
               type="button"
               onClick={handleSave}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap"
             >
               <BookmarkCheck className="h-4 w-4" />
-              {justSaved ? 'Saved' : activeAppId ? 'Update Saved' : 'Save Application'}
+              {justSaved ? 'تم الحفظ' : activeAppId ? 'تحديث المحفوظ' : 'حفظ الطلب'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Document & Analysis Segmented Tabs (always accessible so templates can be previewed & customized!) */}
+      {/* Segmented Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
-        <div className="inline-flex items-center gap-1 p-1 bg-slate-200/70 rounded-lg self-start">
+        <div className="inline-flex items-center gap-1 p-1 bg-slate-200/80 dark:bg-[#162133] border border-transparent dark:border-[#2A3B56] rounded-lg self-start">
           <button
             type="button"
             onClick={() => setSubTab('cv')}
             className={`px-4 py-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               subTab === 'cv'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#2A3B56] text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-[#9FB0C7] hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Lebenslauf (CV)
+            السيرة الذاتية (Lebenslauf)
           </button>
           <button
             type="button"
             onClick={() => setSubTab('letter')}
             className={`px-4 py-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               subTab === 'letter'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#2A3B56] text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-[#9FB0C7] hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Anschreiben (Motivation Letter)
+            رسالة الدافع (Anschreiben)
           </button>
           {activePackage && (
             <button
@@ -474,11 +538,11 @@ export function TailorWorkspace({
               onClick={() => setSubTab('analysis')}
               className={`px-4 py-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                 subTab === 'analysis'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-[#2A3B56] text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-[#9FB0C7] hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Analysis &amp; Match
+              تحليل التطابق
             </button>
           )}
         </div>
@@ -488,15 +552,15 @@ export function TailorWorkspace({
             type="button"
             onClick={handleExportCombined}
             disabled={isExportingCombined}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#1D2B42] rounded-lg transition-colors whitespace-nowrap self-start sm:self-auto"
           >
             <FileDown className="h-3.5 w-3.5" />
-            Export Template PDF
+            تحميل القالب الحالي PDF
           </button>
         )}
       </div>
 
-      {/* Tab 1: Lebenslauf Template */}
+      {/* Tab 1: Lebenslauf */}
       {subTab === 'cv' && (
         <div className="space-y-5">
           <CvDocumentSheet
@@ -515,23 +579,23 @@ export function TailorWorkspace({
           />
 
           {activePackage && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
+            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-700">
-                  Refine Lebenslauf with AI
+                <span className="text-xs font-semibold text-slate-700 dark:text-[#EEF2F8]">
+                  اطلب تعديلاً على السيرة الذاتية:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    'Make bullets more concise',
-                    'Emphasize school subjects & grades',
-                    'Highlight teamwork and reliability',
+                    'اختصر النقاط لتكون أكثر وضوحاً',
+                    'أبرز المواد الدراسية والدرجات',
+                    'ركّز على العمل الجماعي والانضباط',
                   ].map((quick) => (
                     <button
                       key={quick}
                       type="button"
                       disabled={isRefining}
                       onClick={() => handleRefine(quick)}
-                      className="px-2.5 py-1 text-xs text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors disabled:opacity-50"
+                      className="px-2.5 py-1 text-xs text-slate-700 dark:text-[#C5D1E0] bg-slate-50 dark:bg-[#1D2B42] hover:bg-slate-100 dark:hover:bg-[#243652] border border-slate-200 dark:border-[#2A3B56] rounded-md transition-colors disabled:opacity-50"
                     >
                       {quick}
                     </button>
@@ -543,21 +607,21 @@ export function TailorWorkspace({
                   type="text"
                   value={refineInstruction}
                   onChange={(e) => setRefineInstruction(e.target.value)}
-                  placeholder="e.g., Emphasize my Linux experience and keep Kurzprofil to two sentences..."
-                  className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="مثال: أبرز خبرتي في الحاسوب واجعل النبذة في سطرين..."
+                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
                 <button
                   type="button"
                   disabled={isRefining || !refineInstruction.trim()}
                   onClick={() => handleRefine()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
                 >
                   {isRefining ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5" />
                   )}
-                  Apply Refinement
+                  تطبيق التعديل
                 </button>
               </div>
             </div>
@@ -565,7 +629,7 @@ export function TailorWorkspace({
         </div>
       )}
 
-      {/* Tab 2: Anschreiben Template */}
+      {/* Tab 2: Anschreiben */}
       {subTab === 'letter' && (
         <div className="space-y-5">
           <CoverLetterSheet
@@ -582,23 +646,23 @@ export function TailorWorkspace({
           />
 
           {activePackage && (
-            <div className="bg-white border border-slate-200 rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
+            <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4 max-w-[820px] mx-auto space-y-3 no-print">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-700">
-                  Refine Anschreiben with AI
+                <span className="text-xs font-semibold text-slate-700 dark:text-[#EEF2F8]">
+                  اطلب تعديلاً على رسالة الدافع:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    'Shorten to ~250 words for 1-page DIN fit',
-                    'Make the opening sentence more natural and company-specific',
-                    'Emphasize German language readiness and motivation',
+                    'اجعل الرسالة أقصر لتناسب صفحة واحدة',
+                    'اجعل المقدمة أكثر حماساً ومناسبة للشركة',
+                    'أبرز مستواي في اللغة الألمانية ورغبتي في التعلم',
                   ].map((quick) => (
                     <button
                       key={quick}
                       type="button"
                       disabled={isRefining}
                       onClick={() => handleRefine(quick)}
-                      className="px-2.5 py-1 text-xs text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors disabled:opacity-50"
+                      className="px-2.5 py-1 text-xs text-slate-700 dark:text-[#C5D1E0] bg-slate-50 dark:bg-[#1D2B42] hover:bg-slate-100 dark:hover:bg-[#243652] border border-slate-200 dark:border-[#2A3B56] rounded-md transition-colors disabled:opacity-50"
                     >
                       {quick}
                     </button>
@@ -610,21 +674,21 @@ export function TailorWorkspace({
                   type="text"
                   value={refineInstruction}
                   onChange={(e) => setRefineInstruction(e.target.value)}
-                  placeholder="e.g., Mention my enthusiasm for hands-on problem solving in paragraph 2..."
-                  className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="مثال: أضف شغفي بالعمل الميداني في الفقرة الثانية..."
+                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
                 <button
                   type="button"
                   disabled={isRefining || !refineInstruction.trim()}
                   onClick={() => handleRefine()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
                 >
                   {isRefining ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5" />
                   )}
-                  Apply Refinement
+                  تطبيق التعديل
                 </button>
               </div>
             </div>
@@ -635,92 +699,99 @@ export function TailorWorkspace({
       {/* Tab 3: Analysis & Match */}
       {subTab === 'analysis' && activePackage && (
         <div className="space-y-6">
-          <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
-            <h3 className="font-display text-base font-semibold text-slate-900">
-              Role Overview &amp; Key Requirements
+          <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-4">
+            <h3 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+              ملخص الوظيفة وأهم المتطلبات
             </h3>
-            <p className="text-sm text-slate-700 leading-relaxed">
+            <p className="text-sm text-slate-700 dark:text-[#C5D1E0] leading-relaxed">
               {activePackage.jobAnalysis.overview}
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-3 border-t border-slate-200 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-3 border-t border-slate-200 dark:border-[#2A3B56] text-sm">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Technical &amp; School Skills
+                <p className="text-xs font-semibold text-slate-500 dark:text-[#9FB0C7] mb-1.5">
+                  المهارات التقنية والدراسية
                 </p>
-                <p className="text-slate-800 leading-relaxed">
+                <p className="text-slate-800 dark:text-[#EEF2F8] leading-relaxed">
                   {activePackage.jobAnalysis.hardSkills.join(' · ') || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Soft Skills (Kompetenzen)
+                <p className="text-xs font-semibold text-slate-500 dark:text-[#9FB0C7] mb-1.5">
+                  المهارات الشخصية
                 </p>
-                <p className="text-slate-800 leading-relaxed">
+                <p className="text-slate-800 dark:text-[#EEF2F8] leading-relaxed">
                   {activePackage.jobAnalysis.softSkills.join(' · ') || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Language &amp; Contact
+                <p className="text-xs font-semibold text-slate-500 dark:text-[#9FB0C7] mb-1.5">
+                  متطلبات اللغة والتواصل
                 </p>
-                <p className="text-slate-800">
-                  {activePackage.jobAnalysis.languageRequirement || 'Not specified'}
+                <p className="text-slate-800 dark:text-[#EEF2F8]">
+                  {activePackage.jobAnalysis.languageRequirement || 'غير محدد'}
                 </p>
                 {activePackage.jobAnalysis.recipientContact && (
-                  <p className="text-xs text-slate-500 mt-1">
-                    Contact: {activePackage.jobAnalysis.recipientContact}
+                  <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-1">
+                    المسؤول: {activePackage.jobAnalysis.recipientContact}
                   </p>
                 )}
               </div>
             </div>
           </section>
 
-          <section className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h3 className="font-display text-base font-semibold text-slate-900">
-                Requirement-to-Profile Alignment
+          <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-[#2A3B56]">
+              <h3 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+                مقارنة شروط الشركة مع ملفك الشخصي
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Shows how each job requirement maps to your real profile without fabricating credentials.
+              <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5">
+                يوضح لك كيف يطابق ملفك كل شرط من شروط الإعلان دون اختلاق خبرات غير حقيقية.
               </p>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                    <th className="py-3 px-6">Job Requirement</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Evidence from Base Profile</th>
-                    <th className="py-3 px-6 text-right">Alignment</th>
+                  <tr className="border-b border-slate-200 dark:border-[#2A3B56] bg-slate-50 dark:bg-[#1D2B42] text-xs font-medium text-slate-500 dark:text-[#9FB0C7]">
+                    <th className="py-3 px-6">الشرط المطلوب</th>
+                    <th className="py-3 px-4">التصنيف</th>
+                    <th className="py-3 px-4">ما يقابله في ملفك</th>
+                    <th className="py-3 px-6 text-left">التقييم</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 text-sm">
+                <tbody className="divide-y divide-slate-200 dark:divide-[#2A3B56] text-sm">
                   {activePackage.jobAnalysis.requirementMatches.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/70">
-                      <td className="py-3 px-6 font-medium text-slate-900">{row.requirement}</td>
-                      <td className="py-3 px-4 text-xs text-slate-500 whitespace-nowrap">
+                    <tr
+                      key={idx}
+                      className="hover:bg-slate-50/70 dark:hover:bg-[#1D2B42]/60"
+                    >
+                      <td className="py-3 px-6 font-medium text-slate-900 dark:text-[#EEF2F8]">
+                        {row.requirement}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-slate-500 dark:text-[#9FB0C7] whitespace-nowrap">
                         {row.category}
                       </td>
-                      <td className="py-3 px-4 text-slate-700">{row.evidenceFromProfile}</td>
-                      <td className="py-3 px-6 text-right whitespace-nowrap">
+                      <td className="py-3 px-4 text-slate-700 dark:text-[#C5D1E0]">
+                        {row.evidenceFromProfile}
+                      </td>
+                      <td className="py-3 px-6 text-left whitespace-nowrap">
                         {row.strength === 'strong' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Strong Match
+                            تطابق قوي
                           </span>
                         )}
                         {row.strength === 'transferable' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 dark:text-teal-300">
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Transferable
+                            خبرة مقاربة
                           </span>
                         )}
                         {row.strength === 'gap' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
                             <AlertCircle className="h-3.5 w-3.5" />
-                            Missing / Gap
+                            نقطة ناقصة
                           </span>
                         )}
                       </td>
@@ -732,27 +803,27 @@ export function TailorWorkspace({
           </section>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <section className="bg-white border border-slate-200 rounded-lg p-6">
-              <h3 className="font-display text-sm font-semibold text-slate-900 mb-3">
-                What Was Tailored in Your Template
+            <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6">
+              <h3 className="font-display text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] mb-3">
+                أبرز التعديلات التي تمت على ملفك
               </h3>
-              <ul className="space-y-2 text-sm text-slate-700 list-disc pl-4">
+              <ul className="space-y-2 text-sm text-slate-700 dark:text-[#C5D1E0] list-disc pr-4">
                 {activePackage.tailoringNotes.map((note, idx) => (
                   <li key={idx}>{note}</li>
                 ))}
               </ul>
             </section>
 
-            <section className="bg-white border border-slate-200 rounded-lg p-6">
-              <h3 className="font-display text-sm font-semibold text-slate-900 mb-3">
-                Gaps &amp; Recommended Next Steps
+            <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6">
+              <h3 className="font-display text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] mb-3">
+                نصائح ونقاط يفضل الانتباه لها
               </h3>
               {activePackage.jobAnalysis.gapsOrActionItems.length === 0 ? (
-                <p className="text-sm text-slate-600">
-                  No critical gaps detected against this posting.
+                <p className="text-sm text-slate-600 dark:text-[#9FB0C7]">
+                  ملفك مناسب جداً لهذا الإعلان ولا توجد نواقص جوهرية.
                 </p>
               ) : (
-                <ul className="space-y-2 text-sm text-slate-700 list-disc pl-4">
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-[#C5D1E0] list-disc pr-4">
                   {activePackage.jobAnalysis.gapsOrActionItems.map((gap, idx) => (
                     <li key={idx}>{gap}</li>
                   ))}

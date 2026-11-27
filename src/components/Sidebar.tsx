@@ -21,17 +21,17 @@ export function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const navItems: { id: WorkspaceTab; label: string; icon: typeof FileText; count?: number }[] = [
-    { id: 'tailor', label: 'Tailor Application', icon: FileText },
-    { id: 'profile', label: 'Base Profile', icon: UserCheck },
-    { id: 'archive', label: 'Saved Applications', icon: FolderKanban, count: savedCount },
+    { id: 'tailor', label: 'تجهيز التقديم', icon: FileText },
+    { id: 'profile', label: 'ملفي الشخصي', icon: UserCheck },
+    { id: 'archive', label: 'طلباتي المحفوظة', icon: FolderKanban, count: savedCount },
   ];
 
   const primaryLanguage = profile.languages[0];
 
   const sidebarBody = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-slate-200 w-[256px]">
+    <div className="flex h-full flex-col justify-between bg-white dark:bg-[#162133] border-l border-slate-200 dark:border-[#2A3B56] w-[260px]">
       <div>
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-[#2A3B56]">
           <a
             href="#top"
             onClick={(e) => {
@@ -39,21 +39,21 @@ export function Sidebar({
               onSelectTab('tailor');
               onCloseMobile();
             }}
-            className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+            className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-[#EEF2F8] whitespace-nowrap shrink-0"
           >
-            Ausbildung Studio
+            مساعد أوسبيلدونغ
           </a>
           <button
             type="button"
             onClick={onCloseMobile}
-            aria-label="Close navigation"
-            className="lg:hidden p-1.5 text-slate-500 hover:text-slate-900 rounded-md"
+            aria-label="إغلاق القائمة"
+            className="lg:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-md"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="p-4 space-y-1" aria-label="Workspace navigation">
+        <nav className="p-4 space-y-1.5" aria-label="القائمة الرئيسية">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -65,18 +65,26 @@ export function Sidebar({
                   onSelectTab(item.id);
                   onCloseMobile();
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300'
+                    : 'text-slate-600 dark:text-[#9FB0C7] hover:bg-slate-100/70 dark:hover:bg-[#1D2B42] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-2.5">
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : 'text-slate-400'}`} />
+                  <Icon
+                    className={`h-4 w-4 ${
+                      isActive
+                        ? 'text-teal-700 dark:text-teal-300'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                  />
                   <span>{item.label}</span>
                 </span>
                 {typeof item.count === 'number' && (
-                  <span className="font-mono-tabular text-xs text-slate-500">{item.count}</span>
+                  <span className="font-mono-tabular text-xs text-slate-500 dark:text-slate-400">
+                    {item.count}
+                  </span>
                 )}
               </button>
             );
@@ -84,15 +92,17 @@ export function Sidebar({
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 p-4">
-        <p className="text-xs font-medium text-slate-400 mb-1">Active Candidate</p>
-        <p className="text-sm font-semibold text-slate-900 truncate">
-          {profile.fullName || 'No name set'}
+      <div className="border-t border-slate-200 dark:border-[#2A3B56] p-4 bg-[#F8FAFC] dark:bg-[#121C2C]">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+          المتقدم الحالي
         </p>
-        <p className="text-xs text-slate-500 mt-0.5 truncate">
+        <p className="text-sm font-semibold text-slate-900 dark:text-[#EEF2F8] truncate">
+          {profile.fullName || 'لم يتم إدخال الاسم'}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5 truncate">
           {[
-            profile.postalCity || 'Germany',
-            primaryLanguage ? `${primaryLanguage.language} ${primaryLanguage.level}` : '',
+            profile.postalCity || 'ألمانيا',
+            primaryLanguage ? `${primaryLanguage.language} · ${primaryLanguage.level}` : '',
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -103,9 +113,9 @@ export function Sidebar({
             onSelectTab('profile');
             onCloseMobile();
           }}
-          className="mt-3 text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline whitespace-nowrap"
+          className="mt-3 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
         >
-          Edit Base Profile
+          تعديل بياناتي
         </button>
       </div>
     </div>
@@ -117,7 +127,7 @@ export function Sidebar({
       {mobileOpen && (
         <div className="fixed inset-0 z-40 flex lg:hidden no-print">
           <div
-            className="fixed inset-0 bg-slate-900/30"
+            className="fixed inset-0 bg-slate-950/40"
             onClick={onCloseMobile}
             aria-hidden="true"
           />

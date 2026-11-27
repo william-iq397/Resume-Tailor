@@ -19,14 +19,14 @@ async function resizeImageFileToDataUrl(file: File): Promise<string> {
   const rawUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Could not read selected image file.'));
+    reader.onerror = () => reject(new Error('تعذر قراءة ملف الصورة المختار.'));
     reader.readAsDataURL(file);
   });
 
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error('Invalid image file.'));
+    el.onerror = () => reject(new Error('ملف الصورة غير صالح.'));
     el.src = rawUrl;
   });
 
@@ -60,9 +60,9 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
       const dataUrl = await resizeImageFileToDataUrl(file);
       setPhotoLoadError(false);
       updateField('photoUrl', dataUrl);
-      setStatusMessage('Bewerbungsfoto updated in your Base Profile and CV templates.');
+      setStatusMessage('تم تحديث صورتك الشخصية في الملف الشخصي وقالب السيرة الذاتية.');
     } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : 'Failed to load photo.');
+      setStatusMessage(err instanceof Error ? err.message : 'تعذر تحميل الصورة.');
     }
   };
 
@@ -200,22 +200,27 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
       });
       setShowImport(false);
       setRawCvText('');
-      setStatusMessage('Profile populated from your pasted CV. Review any details below.');
+      setStatusMessage('تم استخراج بياناتك بنجاح. يمكنك مراجعتها وتعديل أي حقل بالأسفل.');
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : 'Failed to parse CV.');
+      setParseError(err instanceof Error ? err.message : 'تعذر تحليل السيرة الذاتية.');
     } finally {
       setIsParsing(false);
     }
   };
 
+  const inputClass =
+    'mt-1 w-full px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600';
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-slate-900">Candidate Base Profile</h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Your master source of truth. Every tailored Lebenslauf and Anschreiben draws only from
-            verified details stored here.
+          <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-[#EEF2F8]">
+            ملفي الشخصي (بياناتي الأساسية)
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-[#9FB0C7] mt-1">
+            أدخل معلوماتك مرة واحدة فقط. سيستخدمها التطبيق لتجهيز السيرة الذاتية ورسالة الدافع
+            بصدق ودون إضافة معلومات غير حقيقية.
           </p>
         </div>
 
@@ -223,123 +228,124 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
           <button
             type="button"
             onClick={() => setShowImport((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#1D2B42] rounded-lg transition-colors whitespace-nowrap"
           >
-            <Upload className="h-4 w-4 text-slate-500" />
-            Import from CV
+            <Upload className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            لصق سيرة جاهزة
           </button>
           <button
             type="button"
             onClick={() => {
               setPhotoLoadError(false);
               onChange(SAMPLE_PROFILE);
-              setStatusMessage('Loaded sample Ausbildung applicant profile.');
+              setStatusMessage('تم تحميل نموذج بيانات جاهز للتجربة.');
             }}
-            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#1D2B42] rounded-lg transition-colors whitespace-nowrap"
           >
-            Load Sample
+            تحميل مثال جاهز
           </button>
           <button
             type="button"
             onClick={() => {
               setPhotoLoadError(false);
               onChange(EMPTY_PROFILE);
-              setStatusMessage('Profile cleared. Enter your own background or import an existing CV.');
+              setStatusMessage('تم مسح الحقول لتكتب بياناتك الخاصة من البداية.');
             }}
-            className="px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:text-red-600 hover:border-red-200 rounded-lg transition-colors whitespace-nowrap"
+            className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-[#9FB0C7] bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors whitespace-nowrap"
           >
-            Clear
+            مسح الكل
           </button>
           <button
             type="button"
             onClick={onGoToTailor}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors whitespace-nowrap"
+            className="px-4 py-2 text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap"
           >
-            Tailor Application
+            الانتقال لتجهيز التقديم
           </button>
         </div>
       </div>
 
       {statusMessage && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-lg px-4 py-3 text-sm flex items-center justify-between gap-4">
+        <div className="bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between gap-4">
           <span>{statusMessage}</span>
           <button
             type="button"
             onClick={() => setStatusMessage(null)}
-            className="text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+            className="text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline whitespace-nowrap"
           >
-            Dismiss
+            إخفاء
           </button>
         </div>
       )}
 
       {showImport && (
-        <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+        <div className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-display text-base font-semibold text-slate-900">
-                Import from Existing CV or Resume
+              <h2 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+                استيراد سريع من سيرتك الذاتية القديمة
               </h2>
-              <p className="text-sm text-slate-600 mt-0.5">
-                Paste text from your existing resume (German or English) to extract structured
-                fields automatically.
+              <p className="text-sm text-slate-600 dark:text-[#9FB0C7] mt-0.5">
+                انسخ نص سيرتك الذاتية (بالألمانية أو الإنجليزية أو العربية) والصقه هنا وسيقوم النظام
+                بتعبئة الحقول تلقائياً.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowImport(false)}
-              className="text-xs font-medium text-slate-500 hover:text-slate-900"
+              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             >
-              Close
+              إغلاق
             </button>
           </div>
           <textarea
-            rows={7}
+            rows={6}
             value={rawCvText}
             onChange={(e) => setRawCvText(e.target.value)}
-            placeholder="Paste your current CV / Lebenslauf text here..."
-            className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white"
+            placeholder="الصق نص سيرتك الذاتية هنا..."
+            className="w-full p-3 text-sm bg-slate-50 dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600"
           />
-          {parseError && <p className="text-sm text-red-600">{parseError}</p>}
+          {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={() => setShowImport(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+              className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-[#9FB0C7] hover:text-slate-900 dark:hover:text-white"
             >
-              Cancel
+              إلغاء
             </button>
             <button
               type="button"
               onClick={handleParseCv}
               disabled={isParsing || !rawCvText.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
             >
               {isParsing && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isParsing ? 'Extracting Profile...' : 'Extract & Populate'}
+              {isParsing ? 'جاري استخراج البيانات...' : 'تعبئة الحقول تلقائياً'}
             </button>
           </div>
         </div>
       )}
 
       {/* Personal Details Section */}
-      <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
-        <div className="border-b border-slate-200 pb-3">
-          <h2 className="font-display text-base font-semibold text-slate-900">
-            01. Personal Details &amp; CV Photo (Persönliche Daten)
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-5">
+        <div className="border-b border-slate-200 dark:border-[#2A3B56] pb-3">
+          <h2 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+            ١. المعلومات الشخصية والصورة
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Used for the DIN 5008 Anschreiben header and Lebenslauf template.
+          <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5">
+            تظهر في أعلى السيرة الذاتية ورسالة الدافع (يفضّل كتابتها بالأحرف اللاتينية كما في جواز
+            السفر).
           </p>
         </div>
 
-        {/* Bewerbungsfoto upload row */}
-        <div className="flex flex-wrap items-center gap-5 pb-4 border-b border-slate-100">
-          <div className="h-24 w-20 rounded-lg border border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center shrink-0">
+        {/* Photo upload row */}
+        <div className="flex flex-wrap items-center gap-5 pb-4 border-b border-slate-100 dark:border-[#24344D]">
+          <div className="h-24 w-20 rounded-lg border border-slate-200 dark:border-[#2A3B56] bg-slate-100 dark:bg-[#1D2B42] overflow-hidden flex items-center justify-center shrink-0">
             {profile.photoUrl && !photoLoadError ? (
               <img
                 src={profile.photoUrl}
-                alt={profile.fullName || 'Candidate portrait'}
+                alt={profile.fullName || 'الصورة الشخصية'}
                 referrerPolicy="no-referrer"
                 onError={() => setPhotoLoadError(true)}
                 className="h-full w-full object-cover"
@@ -350,12 +356,11 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
           </div>
           <div className="space-y-2">
             <div>
-              <p className="text-sm font-medium text-slate-900">
-                CV Portrait Photo (Bewerbungsfoto)
+              <p className="text-sm font-medium text-slate-900 dark:text-[#EEF2F8]">
+                الصورة الشخصية للسيرة الذاتية (اختيارية)
               </p>
-              <p className="text-xs text-slate-500">
-                Optional in Germany, recommended for many Ausbildung applications. Included in your
-                CV template and exported PDF.
+              <p className="text-xs text-slate-500 dark:text-[#9FB0C7]">
+                تضاف تلقائياً داخل قالب أوروباس وملف PDF عند تفعيلها.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -372,18 +377,18 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors"
               >
-                <Camera className="h-3.5 w-3.5 text-slate-500" />
-                Upload Photo
+                <Camera className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                رفع صورة
               </button>
               {profile.photoUrl && (
                 <button
                   type="button"
                   onClick={() => updateField('photoUrl', '')}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-red-600 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-[#9FB0C7] hover:text-red-600 dark:hover:text-red-400 rounded-lg"
                 >
-                  Remove Photo
+                  حذف الصورة
                 </button>
               )}
             </div>
@@ -392,177 +397,201 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Full Name</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              الاسم الكامل
+            </span>
             <input
               type="text"
               value={profile.fullName}
               onChange={(e) => updateField('fullName', e.target.value)}
-              placeholder="e.g., Lukas Bergmann"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="مثال: Ahmad Al-Mansoor"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Email</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              البريد الإلكتروني
+            </span>
             <input
               type="email"
               value={profile.email}
               onChange={(e) => updateField('email', e.target.value)}
               placeholder="name@example.de"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Phone</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              رقم الهاتف
+            </span>
             <input
               type="text"
               value={profile.phone}
               onChange={(e) => updateField('phone', e.target.value)}
               placeholder="+49 176 ..."
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Street &amp; House No.</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              الشارع ورقم المنزل
+            </span>
             <input
               type="text"
               value={profile.streetAddress}
               onChange={(e) => updateField('streetAddress', e.target.value)}
               placeholder="Schillerstraße 28"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Postal Code &amp; City</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              الرمز البريدي والمدينة
+            </span>
             <input
               type="text"
               value={profile.postalCity}
               onChange={(e) => updateField('postalCity', e.target.value)}
               placeholder="40237 Düsseldorf"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Earliest Start / Availability</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              متى يمكنك البدء؟
+            </span>
             <input
               type="text"
               value={profile.availability}
               onChange={(e) => updateField('availability', e.target.value)}
               placeholder="Ab 01.08.2027 / Sofort"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Birth Date &amp; Place (Optional)</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              تاريخ ومكان الميلاد (اختياري)
+            </span>
             <input
               type="text"
               value={profile.birthInfo}
               onChange={(e) => updateField('birthInfo', e.target.value)}
-              placeholder="14.05.2006 in Essen"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="14.05.2006 in ..."
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Nationality / Visa Note (Optional)</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              الجنسية أو الإقامة (اختياري)
+            </span>
             <input
               type="text"
               value={profile.nationality}
               onChange={(e) => updateField('nationality', e.target.value)}
-              placeholder="Deutsch / Aufenthaltserlaubnis"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="Syrisch / Aufenthaltserlaubnis..."
+              className={inputClass}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-700">Portfolio / GitHub (Optional)</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              رابط أعمال أو LinkedIn (اختياري)
+            </span>
             <input
               type="text"
               value={profile.linkedInOrPortfolio}
               onChange={(e) => updateField('linkedInOrPortfolio', e.target.value)}
               placeholder="github.com/username"
-              className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={inputClass}
             />
           </label>
         </div>
 
         <label className="block">
-          <span className="text-xs font-medium text-slate-700">
-            Background Summary (Kurzprofil / Motivation Base)
+          <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+            نبذة مختصرة عنك (يمكنك كتابتها بالعربية أو الألمانية)
           </span>
           <textarea
             rows={3}
             value={profile.summary}
             onChange={(e) => updateField('summary', e.target.value)}
-            placeholder="Summarize your schooling, key strengths, and career direction..."
-            className="mt-1 w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            placeholder="اكتب باختصار عن دراستك واهتماماتك ونقاط قوتك..."
+            className={inputClass}
           />
         </label>
       </section>
 
       {/* Experience & Internships Section */}
-      <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-5">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A3B56] pb-3">
           <div>
-            <h2 className="font-display text-base font-semibold text-slate-900">
-              02. Experience, Internships &amp; Volunteering (Praktika &amp; Engagement)
+            <h2 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+              ٢. الخبرات العملية والتدريب والتطوع
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Include school internships (Schülerbetriebspraktikum), part-time jobs, clubs, or projects.
+            <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5">
+              أضف أي تدريب عملي (Praktikum) أو عمل جزئي أو نشاط تطوعي أو مشروع قمت به.
             </p>
           </div>
           <button
             type="button"
             onClick={addExperience}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Entry
+            إضافة خبرة
           </button>
         </div>
 
         {profile.experience.length === 0 ? (
-          <p className="text-sm text-slate-500 py-2">
-            No practical entries added yet. Add internships, part-time work, school projects, or volunteer roles.
+          <p className="text-sm text-slate-500 dark:text-[#9FB0C7] py-2">
+            لا توجد خبرات مضافة حالياً. اضغط "إضافة خبرة" لإدخال تدريب أو عمل سابق.
           </p>
         ) : (
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-slate-200 dark:divide-[#2A3B56]">
             {profile.experience.map((item) => (
               <div key={item.id} className="py-5 first:pt-0 last:pb-0 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="block">
-                    <span className="text-xs font-medium text-slate-700">Period</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      الفترة (من – إلى)
+                    </span>
                     <input
                       type="text"
                       value={item.period}
                       onChange={(e) => updateExperience(item.id, { period: e.target.value })}
                       placeholder="03/2026 – 04/2026"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className={inputClass}
                     />
                   </label>
                   <label className="block md:col-span-2">
-                    <span className="text-xs font-medium text-slate-700">Role / Activity</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      المسمى أو النشاط
+                    </span>
                     <input
                       type="text"
                       value={item.role}
                       onChange={(e) => updateExperience(item.id, { role: e.target.value })}
-                      placeholder="Schülerbetriebspraktikum IT-Support"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Praktikum IT-Support / عمل جزئي..."
+                      className={inputClass}
                     />
                   </label>
                   <div className="flex items-end gap-2">
                     <label className="block flex-1">
-                      <span className="text-xs font-medium text-slate-700">City</span>
+                      <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                        المدينة
+                      </span>
                       <input
                         type="text"
                         value={item.location}
                         onChange={(e) => updateExperience(item.id, { location: e.target.value })}
                         placeholder="Düsseldorf"
-                        className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className={inputClass}
                       />
                     </label>
                     <button
                       type="button"
                       onClick={() => removeExperience(item.id)}
-                      aria-label="Remove experience entry"
-                      className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      aria-label="حذف الخبرة"
+                      className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -570,23 +599,27 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <label className="block">
-                    <span className="text-xs font-medium text-slate-700">Company / Organization</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      اسم الشركة أو المؤسسة
+                    </span>
                     <input
                       type="text"
                       value={item.organization}
                       onChange={(e) => updateExperience(item.id, { organization: e.target.value })}
                       placeholder="RheinWerk Systems GmbH"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className={inputClass}
                     />
                   </label>
                   <label className="block md:col-span-2">
-                    <span className="text-xs font-medium text-slate-700">Tasks &amp; Achievements</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      ماذا فعلت وما الذي أنجزته؟
+                    </span>
                     <input
                       type="text"
                       value={item.highlights}
                       onChange={(e) => updateExperience(item.id, { highlights: e.target.value })}
-                      placeholder="What you did, tools used, feedback received..."
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="المهام التي قمت بها والأدوات التي استخدمتها..."
+                      className={inputClass}
                     />
                   </label>
                 </div>
@@ -597,69 +630,77 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
       </section>
 
       {/* Education Section */}
-      <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-5">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#2A3B56] pb-3">
           <div>
-            <h2 className="font-display text-base font-semibold text-slate-900">
-              03. Education &amp; Schooling (Schulbildung)
+            <h2 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+              ٣. التعليم والشهادات المدرسية
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Include school type, expected or earned certificate (e.g., Realschulabschluss, Abitur), and strong subjects.
+            <p className="text-xs text-slate-500 dark:text-[#9FB0C7] mt-0.5">
+              أضف شهادتك المدرسية (ثانوية عامة / بكالوريا / Realschulabschluss) والمواد القوية فيها.
             </p>
           </div>
           <button
             type="button"
             onClick={addEducation}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-800 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add School
+            إضافة شهادة
           </button>
         </div>
 
         {profile.education.length === 0 ? (
-          <p className="text-sm text-slate-500 py-2">No school entries added yet.</p>
+          <p className="text-sm text-slate-500 dark:text-[#9FB0C7] py-2">
+            لا توجد شهادات تعليمية مضافة بعد.
+          </p>
         ) : (
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-slate-200 dark:divide-[#2A3B56]">
             {profile.education.map((edu) => (
               <div key={edu.id} className="py-5 first:pt-0 last:pb-0 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <label className="block">
-                    <span className="text-xs font-medium text-slate-700">Period</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      الفترة
+                    </span>
                     <input
                       type="text"
                       value={edu.period}
                       onChange={(e) => updateEducation(edu.id, { period: e.target.value })}
                       placeholder="08/2021 – 06/2027"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className={inputClass}
                     />
                   </label>
                   <label className="block md:col-span-2">
-                    <span className="text-xs font-medium text-slate-700">Certificate / Degree</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      الشهادة أو المرحلة الدراسية
+                    </span>
                     <input
                       type="text"
                       value={edu.degree}
                       onChange={(e) => updateEducation(edu.id, { degree: e.target.value })}
-                      placeholder="Mittlerer Schulabschluss (Fachoberschulreife)"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Mittlerer Schulabschluss / Abitur"
+                      className={inputClass}
                     />
                   </label>
                   <div className="flex items-end gap-2">
                     <label className="block flex-1">
-                      <span className="text-xs font-medium text-slate-700">City</span>
+                      <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                        المدينة
+                      </span>
                       <input
                         type="text"
                         value={edu.location}
                         onChange={(e) => updateEducation(edu.id, { location: e.target.value })}
                         placeholder="Düsseldorf"
-                        className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className={inputClass}
                       />
                     </label>
                     <button
                       type="button"
                       onClick={() => removeEducation(edu.id)}
-                      aria-label="Remove education entry"
-                      className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      aria-label="حذف الشهادة"
+                      className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -667,23 +708,27 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <label className="block">
-                    <span className="text-xs font-medium text-slate-700">School / University</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      اسم المدرسة أو المعهد
+                    </span>
                     <input
                       type="text"
                       value={edu.institution}
                       onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
                       placeholder="Goethe-Realschule"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className={inputClass}
                     />
                   </label>
                   <label className="block md:col-span-2">
-                    <span className="text-xs font-medium text-slate-700">Focus Subjects / Grades</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+                      أبرز المواد أو الدرجات
+                    </span>
                     <input
                       type="text"
                       value={edu.details}
                       onChange={(e) => updateEducation(edu.id, { details: e.target.value })}
-                      placeholder="Schwerpunktfächer: Mathematik (2), Informatik (1), Englisch (2)"
-                      className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="الرياضيات، الحاسوب، اللغة الإنجليزية..."
+                      className={inputClass}
                     />
                   </label>
                 </div>
@@ -694,36 +739,38 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
       </section>
 
       {/* Skills, Languages & Interests */}
-      <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
-        <div className="border-b border-slate-200 pb-3">
-          <h2 className="font-display text-base font-semibold text-slate-900">
-            04. Skills, Languages &amp; Interests (Kenntnisse &amp; Sprachen)
+      <section className="bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-6 space-y-5">
+        <div className="border-b border-slate-200 dark:border-[#2A3B56] pb-3">
+          <h2 className="font-display text-base font-semibold text-slate-900 dark:text-[#EEF2F8]">
+            ٤. المهارات واللغات والهوايات
           </h2>
         </div>
 
         <label className="block">
-          <span className="text-xs font-medium text-slate-700">
-            Technical, Office &amp; Soft Skills (comma-separated)
+          <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+            المهارات التقنية والشخصية (افصل بينها بفاصلة)
           </span>
           <textarea
             rows={2}
             value={profile.skills}
             onChange={(e) => updateField('skills', e.target.value)}
-            placeholder="Python, HTML/CSS, MS Office, Teamfähigkeit, Zuverlässigkeit..."
-            className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            placeholder="MS Office, Excel, Python, العمل الجماعي، الالتزام بالمواعيد..."
+            className={inputClass}
           />
         </label>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-700">Languages (CEFR Level)</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+              اللغات والمستوى الأوروبي (A1 – C2)
+            </span>
             <button
               type="button"
               onClick={addLanguage}
-              className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 dark:text-teal-300 hover:underline"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Language
+              إضافة لغة
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -734,20 +781,20 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
                   value={lang.language}
                   onChange={(e) => updateLanguage(lang.id, { language: e.target.value })}
                   placeholder="Deutsch"
-                  className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
                 <input
                   type="text"
                   value={lang.level}
                   onChange={(e) => updateLanguage(lang.id, { level: e.target.value })}
-                  placeholder="B2 / C1 / Muttersprache"
-                  className="w-44 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="B2 / C1 / لغة أم"
+                  className="w-44 px-3 py-2 text-sm bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] rounded-lg text-slate-900 dark:text-[#EEF2F8] focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
                 <button
                   type="button"
                   onClick={() => removeLanguage(lang.id)}
-                  aria-label="Remove language"
-                  className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  aria-label="حذف اللغة"
+                  className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -757,13 +804,15 @@ export function ProfileView({ profile, onChange, onGoToTailor }: ProfileViewProp
         </div>
 
         <label className="block">
-          <span className="text-xs font-medium text-slate-700">Interests (Interessen)</span>
+          <span className="text-xs font-medium text-slate-700 dark:text-[#C5D1E0]">
+            الهوايات والاهتمامات (اختياري)
+          </span>
           <input
             type="text"
             value={profile.interests}
             onChange={(e) => updateField('interests', e.target.value)}
-            placeholder="Schachverein, Elektronik-Basteln, Vereinsfußball..."
-            className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            placeholder="كرة القدم، البرمجة، القراءة..."
+            className={inputClass}
           />
         </label>
       </section>

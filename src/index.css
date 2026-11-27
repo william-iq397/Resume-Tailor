@@ -1,18 +1,24 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Cairo', system-ui, -apple-system, sans-serif;
+    --font-sans: 'IBM Plex Sans Arabic', 'Cairo', system-ui, -apple-system, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   }
 
   html {
     font-family: var(--font-sans);
-    background-color: #f8f9fa;
+    background-color: #f3f6fa;
     color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.dark {
+    background-color: #0e1624;
+    color: #eef2f8;
   }
 
   h1, h2, h3, h4, .font-display {

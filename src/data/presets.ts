@@ -24,18 +24,18 @@ export const TEMPLATE_OPTIONS: {
 }[] = [
   {
     id: 'europass_ats',
-    name: 'Europass (ATS)',
-    subtitle: 'Official single-column Europass CV & DIN letter structure for German & EU ATS',
+    name: 'أوروباس (متوافق مع ATS)',
+    subtitle: 'النموذج الأوروبي المعتمد في ألمانيا بعمود واحد يقرأه نظام الشركات بسهولة',
   },
   {
     id: 'classic_berlin',
-    name: 'Classic DIN',
-    subtitle: 'Traditional German tabular Lebenslauf + DIN 5008 letter (single-column ATS)',
+    name: 'ألماني كلاسيكي',
+    subtitle: 'تنسيق ألماني تقليدي منظم بعمود واحد متوافق مع الأنظمة الآلية',
   },
   {
     id: 'minimalist_bauhaus',
-    name: 'Minimalist ATS',
-    subtitle: 'Ultra-clean typographic single-column layout',
+    name: 'بسيط وحديث',
+    subtitle: 'تصميم خفيف وواضح بعمود واحد للتركيز على المحتوى',
   },
 ];
 
@@ -45,10 +45,10 @@ export const ACCENT_OPTIONS: {
   hex: string;
   rgb: [number, number, number];
 }[] = [
-  { id: 'europass', label: 'Europass Blue', hex: '#004494', rgb: [0, 68, 148] },
-  { id: 'slate', label: 'Slate', hex: '#0F172A', rgb: [15, 23, 42] },
-  { id: 'pine', label: 'Pine', hex: '#0F766E', rgb: [15, 118, 110] },
-  { id: 'burgundy', label: 'Burgundy', hex: '#991B1B', rgb: [153, 27, 27] },
+  { id: 'europass', label: 'أزرق أوروباس', hex: '#004494', rgb: [0, 68, 148] },
+  { id: 'slate', label: 'رمادي داكن', hex: '#0F172A', rgb: [15, 23, 42] },
+  { id: 'pine', label: 'أخضر هادئ', hex: '#0F766E', rgb: [15, 118, 110] },
+  { id: 'burgundy', label: 'عنابي كلاسيكي', hex: '#991B1B', rgb: [153, 27, 27] },
 ];
 
 export function getAccentMeta(accentId: TemplateAccentId | string) {
@@ -209,7 +209,7 @@ export function buildCoverLetterFromProfile(
     closing: 'Mit freundlichen Grüßen',
     signatureName: profile.fullName || '[Ihr Name]',
     englishSummary:
-      'Europass ATS template preview populated from your Base Profile. Click "Analyze & Tailor Documents" to let the AI rewrite the title, summary, experiences, and motivation letter specifically for the pasted job description.',
+      'هذا نموذج أولي من بيانات ملفك الشخصي. بعد لصق إعلان الوظيفة والضغط على زر التجهيز، سيقوم الذكاء الاصطناعي بإعادة صياغة العنوان والنبذة والخبرات ورسالة الدافع لتناسب الوظيفة المطلوبة مع شرحها هنا بالعربية.',
   };
 }
 
@@ -224,7 +224,7 @@ export interface SampleJobPreset {
 export const SAMPLE_JOB_PRESETS: SampleJobPreset[] = [
   {
     id: 'fiae',
-    label: 'Fachinformatiker Anwendungsentwicklung',
+    label: 'مبرمج تطبيقات (IT)',
     company: 'NordRhein Digital Solutions GmbH',
     role: 'Ausbildung zum Fachinformatiker für Anwendungsentwicklung (m/w/d)',
     description: `Ausbildung zum Fachinformatiker für Anwendungsentwicklung (m/w/d)
@@ -250,7 +250,7 @@ Dein Profil:
   },
   {
     id: 'kaufmann',
-    label: 'Kaufmann/-frau für Büromanagement',
+    label: 'إدارة مكاتب (Büromanagement)',
     company: 'Bergische Logistik & Handel AG',
     role: 'Ausbildung zum Kaufmann für Büromanagement (m/w/d)',
     description: `Ausbildung zur/zum Kauffrau/-mann für Büromanagement (m/w/d)
@@ -273,7 +273,7 @@ Was du mitbringst:
   },
   {
     id: 'mechatroniker',
-    label: 'Mechatroniker/-in Industrie',
+    label: 'ميكاترونيك صناعي',
     company: 'Krones & Partner Automation GmbH',
     role: 'Ausbildung zum Mechatroniker (m/w/d)',
     description: `Ausbildung zum Mechatroniker (m/w/d)

@@ -8,13 +8,102 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const MODEL_NAME = "gemini-4-hydrogen";
+const FALLBACK_MODEL_NAME = "gemini-3.1-flash-lite";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractReadableError(err: unknown): { status: number; message: string } {
+  const errorObj = err as { statusCode?: number; status?: number; message?: string };
+  let status = errorObj?.statusCode || errorObj?.status || 500;
+  let message = errorObj?.message || "Unexpected server error while calling Gemini API.";
+
+  // @google/genai sometimes puts a JSON string inside err.message
+  if (typeof message === "string" && message.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(message) as {
+        error?: { code?: number; message?: string; status?: string };
+      };
+      if (parsed?.error?.message) {
+        message = parsed.error.message;
+      }
+      if (typeof parsed?.error?.code === "number") {
+        status = parsed.error.code;
+      }
+    } catch {
+      // Keep original message
+    }
+  }
+
+  return { status, message };
+}
+
+function isTransientError(status: number, message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    status === 503 ||
+    status === 429 ||
+    status === 502 ||
+    status === 504 ||
+    lower.includes("high demand") ||
+    lower.includes("unavailable") ||
+    lower.includes("temporarily") ||
+    lower.includes("resource_exhausted")
+  );
+}
+
+async function generateWithRetry(
+  ai: GoogleGenAI,
+  params: {
+    contents: string;
+    systemInstruction: string;
+    responseSchema: Record<string, unknown>;
+  }
+): Promise<string> {
+  const attempts: { model: string; thinkingLevel: ThinkingLevel; delayMs: number }[] = [
+    { model: MODEL_NAME, thinkingLevel: ThinkingLevel.LOW, delayMs: 0 },
+    { model: FALLBACK_MODEL_NAME, thinkingLevel: ThinkingLevel.MINIMAL, delayMs: 300 },
+  ];
+
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    if (attempt.delayMs > 0) {
+      await sleep(attempt.delayMs);
+    }
+    try {
+      const response = await ai.models.generateContent({
+        model: attempt.model,
+        contents: params.contents,
+        config: {
+          systemInstruction: params.systemInstruction,
+          thinkingConfig: { thinkingLevel: attempt.thinkingLevel },
+          responseMimeType: "application/json",
+          responseSchema: params.responseSchema,
+        },
+      });
+      if (!response.text) {
+        throw new Error("Model returned an empty response.");
+      }
+      return response.text;
+    } catch (err) {
+      lastError = err;
+      const { status, message } = extractReadableError(err);
+      if (!isTransientError(status, message)) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
+}
 
 function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     throw Object.assign(
       new Error(
-        "GEMINI_API_KEY is not configured. Please add your Gemini API key in Settings > Secrets."
+        "مفتاح Gemini API غير مضاف. يرجى إضافته من لوحة Settings > Secrets."
       ),
       { statusCode: 503 }
     );
@@ -30,28 +119,32 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 function handleGeminiError(err: unknown, res: Response): void {
-  const errorObj = err as { statusCode?: number; status?: number; message?: string };
-  const rawMessage = errorObj?.message || "Unexpected server error while calling Gemini API.";
-  const status = errorObj?.statusCode || errorObj?.status || 500;
+  const { status, message: rawMessage } = extractReadableError(err);
 
   if (
     rawMessage.includes("API_KEY_INVALID") ||
     (status === 400 && rawMessage.toLowerCase().includes("api key"))
   ) {
     res.status(400).json({
-      error: "The configured Gemini API key appears invalid. Please verify it in Settings > Secrets.",
+      error: "مفتاح Gemini API غير صالح. يرجى التحقق منه في Settings > Secrets.",
     });
     return;
   }
   if (status === 403 || rawMessage.includes("PERMISSION_DENIED")) {
     res.status(403).json({
-      error: "Permission denied by Gemini API. Please check your API key in Settings > Secrets.",
+      error: "تم رفض الصلاحية من خدمة Gemini API. يرجى التحقق من المفتاح في Settings > Secrets.",
     });
     return;
   }
   if (status === 429 || rawMessage.includes("RESOURCE_EXHAUSTED")) {
     res.status(429).json({
-      error: "Rate limit or quota reached for the Gemini API. Please wait a moment and try again.",
+      error: "تم تجاوز حد الطلبات المؤقت لخدمة الذكاء الاصطناعي. يرجى الانتظار بضع ثوانٍ والمحاولة مجدداً.",
+    });
+    return;
+  }
+  if (status === 503 || rawMessage.toLowerCase().includes("high demand")) {
+    res.status(503).json({
+      error: "خادم الذكاء الاصطناعي يشهد ضغطاً مؤقتاً الآن. يرجى المحاولة مرة أخرى بعد لحظات.",
     });
     return;
   }
@@ -291,6 +384,10 @@ async function startServer() {
   const port = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: "6mb" }));
+  app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    next();
+  });
 
   app.get("/api/health", (_req: Request, res: Response) => {
     const hasKey = Boolean(
@@ -304,13 +401,13 @@ async function startServer() {
       const { profile, jobDescription, targetCompany, targetRole, language, tone } = req.body ?? {};
 
       if (!jobDescription || typeof jobDescription !== "string" || !jobDescription.trim()) {
-        res.status(400).json({ error: "Please paste a job description (Stellenanzeige) to analyze." });
+        res.status(400).json({ error: "يرجى لصق نص إعلان الوظيفة (Stellenanzeige) أولاً." });
         return;
       }
       if (!profile || typeof profile !== "object" || !profile.fullName) {
         res
           .status(400)
-          .json({ error: "Please add at least your name and background in Base Profile first." });
+          .json({ error: "يرجى إضافة اسمك وبياناتك في صفحة ملفي الشخصي أولاً." });
         return;
       }
 
@@ -318,10 +415,8 @@ async function startServer() {
 
       const languageInstruction =
         language === "en"
-          ? "Write both the tailored CV and cover letter in clear, professional English tailored to German company expectations."
-          : language === "de_with_notes"
-          ? "Write both the tailored CV (Lebenslauf) and cover letter (Anschreiben) in natural, idiomatic, error-free German (Sie-Anrede). Provide the jobAnalysis overview, gapsOrActionItems, tailoringNotes, and cover letter englishSummary in clear English so the applicant understands every detail."
-          : "Write both the tailored CV (Lebenslauf) and cover letter (Anschreiben) in natural, idiomatic, error-free German (Sie-Anrede). Also provide a concise English summary in englishSummary and clear actionable notes.";
+          ? "Write both the tailored CV and cover letter in clear, professional English tailored to German company expectations. Write jobAnalysis.overview, requirementMatches[].category, requirementMatches[].evidenceFromProfile, gapsOrActionItems, tailoringNotes, and tailoredCoverLetter.englishSummary in clear, simple Arabic (العربية المبسطة) so the applicant easily understands everything."
+          : "Write both the tailored CV (Lebenslauf) and cover letter (Anschreiben) in natural, idiomatic, error-free German (Sie-Anrede). IMPORTANT: Write jobAnalysis.overview, requirementMatches[].category, requirementMatches[].evidenceFromProfile, gapsOrActionItems, tailoringNotes, and tailoredCoverLetter.englishSummary in clear, friendly, simple Arabic (العربية المبسطة) so an Arabic-speaking applicant understands every detail, gap, and what the German cover letter says.";
 
       const toneInstruction =
         tone === "technical"
@@ -360,21 +455,11 @@ ${JSON.stringify(sanitizeProfileForAi(profile), null, 2)}
 JOB DESCRIPTION (STELLENANZEIGE):
 ${jobDescription}`;
 
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
+      const rawText = await generateWithRetry(ai, {
         contents: userPrompt,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json",
-          responseSchema: TAILOR_RESPONSE_SCHEMA,
-        },
+        systemInstruction,
+        responseSchema: TAILOR_RESPONSE_SCHEMA,
       });
-
-      const rawText = response.text;
-      if (!rawText) {
-        throw new Error("Model returned an empty response.");
-      }
 
       const parsed = JSON.parse(rawText);
       res.json(parsed);
@@ -389,24 +474,24 @@ ${jobDescription}`;
         req.body ?? {};
 
       if (!instruction || typeof instruction !== "string" || !instruction.trim()) {
-        res.status(400).json({ error: "Please enter a refinement instruction." });
+        res.status(400).json({ error: "يرجى كتابة التعديل المطلوب." });
         return;
       }
       if (!currentPackage) {
-        res.status(400).json({ error: "No tailored application package provided to refine." });
+        res.status(400).json({ error: "لا توجد مستندات معدلة لتحديثها." });
         return;
       }
 
       const ai = getGeminiClient();
 
       const systemInstruction = `You are refining an existing tailored German Ausbildung application package (Lebenslauf and/or DIN 5008 Anschreiben).
-Follow the user's refinement instruction precisely while strictly preserving truthfulness against the Candidate Profile (never invent fake experience or qualifications).
+Follow the user's refinement instruction precisely (even if the instruction is written in Arabic) while strictly preserving truthfulness against the Candidate Profile (never invent fake experience or qualifications).
+Keep the CV and Cover Letter in German (or English if language === "en"), and keep jobAnalysis.overview, gapsOrActionItems, tailoringNotes, and tailoredCoverLetter.englishSummary in clear, simple Arabic.
 Target section to focus on: ${targetSection || "both"}.
 Output language mode: ${language || "de_with_notes"}.
 Return the complete updated JSON object matching the schema.`;
 
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
+      const rawText = await generateWithRetry(ai, {
         contents: `REFINEMENT INSTRUCTION:
 ${instruction}
 
@@ -418,18 +503,9 @@ ${jobDescription}
 
 CURRENT TAILORED PACKAGE:
 ${JSON.stringify(currentPackage, null, 2)}`,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json",
-          responseSchema: TAILOR_RESPONSE_SCHEMA,
-        },
+        systemInstruction,
+        responseSchema: TAILOR_RESPONSE_SCHEMA,
       });
-
-      const rawText = response.text;
-      if (!rawText) {
-        throw new Error("Model returned an empty response.");
-      }
 
       res.json(JSON.parse(rawText));
     } catch (err) {
@@ -441,28 +517,18 @@ ${JSON.stringify(currentPackage, null, 2)}`,
     try {
       const { rawText } = req.body ?? {};
       if (!rawText || typeof rawText !== "string" || !rawText.trim()) {
-        res.status(400).json({ error: "Please paste CV or resume text to import." });
+        res.status(400).json({ error: "يرجى لصق نص السيرة الذاتية للاستخراج." });
         return;
       }
 
       const ai = getGeminiClient();
 
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
+      const parsedText = await generateWithRetry(ai, {
         contents: `Extract structured candidate profile fields from the following CV/resume text. Leave unknown fields as empty string "" or empty arrays []. Do not invent missing information.\n\nCV TEXT:\n${rawText}`,
-        config: {
-          systemInstruction:
-            "You accurately extract structured candidate profile information from raw CV or resume text in German or English without inventing any facts.",
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json",
-          responseSchema: PARSE_CV_SCHEMA,
-        },
+        systemInstruction:
+          "You accurately extract structured candidate profile information from raw CV or resume text in German or English without inventing any facts.",
+        responseSchema: PARSE_CV_SCHEMA,
       });
-
-      const parsedText = response.text;
-      if (!parsedText) {
-        throw new Error("Model returned an empty response.");
-      }
 
       res.json(JSON.parse(parsedText));
     } catch (err) {

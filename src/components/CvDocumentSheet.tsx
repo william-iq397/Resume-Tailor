@@ -35,13 +35,13 @@ async function readAndResizePhoto(file: File): Promise<string> {
   const rawUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Could not read image file.'));
+    reader.onerror = () => reject(new Error('تعذر قراءة ملف الصورة.'));
     reader.readAsDataURL(file);
   });
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error('Invalid image file.'));
+    el.onerror = () => reject(new Error('ملف الصورة غير صالح.'));
     el.src = rawUrl;
   });
   const maxDim = 560;
@@ -105,24 +105,13 @@ export function CvDocumentSheet({
     }
   };
 
-  // Deterministic ATS-readiness checks on the actual document data
   const atsChecks = [
-    { label: 'Single-column linear PDF flow', ok: true },
+    { label: 'عمود واحد تقرؤه أنظمة الشركات بوضوح', ok: true },
+    { label: 'بيانات التواصل واضحة ومصنفة', ok: Boolean(profile.email && profile.phone) },
+    { label: 'عنوان مهنة التدريب محدد', ok: Boolean(cv.headline && cv.headline.trim().length > 4) },
     {
-      label: 'Labeled contact fields',
-      ok: Boolean(profile.email && profile.phone),
-    },
-    {
-      label: 'Target role headline',
-      ok: Boolean(cv.headline && cv.headline.trim().length > 4),
-    },
-    {
-      label: 'CEFR language levels',
+      label: 'مستويات اللغة الأوروبية (A1–C2)',
       ok: cv.languages.some((l) => /(A1|A2|B1|B2|C1|C2|Muttersprache)/i.test(l.level)),
-    },
-    {
-      label: 'Machine-readable text (no text-in-image)',
-      ok: true,
     },
   ];
 
@@ -148,8 +137,8 @@ export function CvDocumentSheet({
         <button
           type="button"
           onClick={() => photoInputRef.current?.click()}
-          title="Change CV photo"
-          className="no-print absolute bottom-1.5 right-1.5 p-1.5 rounded-md bg-white/90 text-slate-700 border border-slate-200 shadow-sm opacity-90 hover:opacity-100 hover:text-blue-700 transition-opacity"
+          title="تغيير الصورة الشخصية"
+          className="no-print absolute bottom-1.5 right-1.5 p-1.5 rounded-md bg-white/95 text-slate-700 border border-slate-200 shadow-sm opacity-90 hover:opacity-100 hover:text-teal-700 transition-opacity"
         >
           <Camera className="h-3.5 w-3.5" />
         </button>
@@ -187,7 +176,6 @@ export function CvDocumentSheet({
         }}
       />
 
-      {/* Template Switcher & Accent Controls */}
       <TemplateControlsBar
         config={templateConfig}
         onChange={onChangeTemplateConfig}
@@ -195,89 +183,104 @@ export function CvDocumentSheet({
       />
 
       {/* Action Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 no-print">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-          <span className="font-medium text-slate-900">
-            {isEuropass ? 'Europass Lebenslauf (ATS)' : 'Lebenslauf'}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-3 no-print">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-[#9FB0C7]">
+          <span className="font-semibold text-slate-900 dark:text-[#EEF2F8]">
+            {isEuropass ? 'سيرة ذاتية بصيغة أوروباس (ATS)' : 'السيرة الذاتية'}
           </span>
           <span aria-hidden="true">·</span>
-          <span>
-            {isTailored ? 'AI-Tailored to Job Posting' : 'Base Profile Template Preview'}
-          </span>
+          <span>{isTailored ? 'معدلة خصيصاً لهذا الإعلان' : 'معاينة أولية من ملفك الشخصي'}</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => photoInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
           >
             <Camera className="h-3.5 w-3.5" />
-            Change Photo
+            تغيير الصورة
           </button>
           <button
             type="button"
             onClick={() => setIsEditing((prev) => !prev)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
               isEditing
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-700'
+                : 'bg-white dark:bg-[#1D2B42] text-slate-700 dark:text-[#EEF2F8] border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652]'
             }`}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {isEditing ? 'Done Editing' : 'Edit Template'}
+            {isEditing ? 'إنهاء التعديل' : 'تعديل النص يدوياً'}
           </button>
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
-            {copied ? 'Copied' : 'Copy Text'}
+            {copied ? 'تم النسخ' : 'نسخ النص'}
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
           >
             <Printer className="h-3.5 w-3.5" />
-            Print
+            طباعة
           </button>
           <button
             type="button"
             onClick={handleExportPdf}
             disabled={isExportingPdf}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-60 rounded-lg transition-colors whitespace-nowrap"
           >
             {isExportingPdf ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <FileDown className="h-3.5 w-3.5" />
             )}
-            Export PDF
+            تحميل PDF
           </button>
         </div>
       </div>
 
       {/* Deterministic ATS Compatibility Verification Strip */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 max-w-[820px] mx-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 no-print">
-        <span className="font-semibold text-slate-800">ATS Parser Checks:</span>
+      <div className="bg-white/80 dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-2.5 max-w-[820px] mx-auto flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-[#9FB0C7] no-print">
+        <span className="font-semibold text-slate-900 dark:text-[#EEF2F8]">
+          جاهزية القبول في أنظمة الشركات (ATS):
+        </span>
         {atsChecks.map((check) => (
           <span key={check.label} className="inline-flex items-center gap-1">
             <CheckCircle2
-              className={`h-3.5 w-3.5 ${check.ok ? 'text-emerald-600' : 'text-amber-600'}`}
+              className={`h-3.5 w-3.5 ${
+                check.ok
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400'
+              }`}
             />
-            <span className={check.ok ? 'text-slate-700' : 'text-amber-800'}>{check.label}</span>
+            <span
+              className={
+                check.ok
+                  ? 'text-slate-700 dark:text-[#C5D1E0]'
+                  : 'text-amber-800 dark:text-amber-300'
+              }
+            >
+              {check.label}
+            </span>
           </span>
         ))}
       </div>
 
-      {/* Single-Column ATS-Safe Europass / German CV A4 Sheet */}
-      <article className="bg-white border border-slate-200 rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 print-only-sheet">
+      {/* Single-Column ATS-Safe Europass / German CV A4 Sheet (always LTR white paper) */}
+      <article
+        dir="ltr"
+        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 text-left print-only-sheet"
+      >
         {(isEuropass || isBauhaus) && (
           <div
             className={isEuropass ? 'h-2.5 w-full' : 'h-1.5 w-full'}
@@ -307,7 +310,7 @@ export function CvDocumentSheet({
                   type="text"
                   value={cv.headline}
                   onChange={(e) => onUpdateCv({ ...cv, headline: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-sm font-semibold border border-blue-300 rounded bg-blue-50/40"
+                  className="w-full px-2.5 py-1.5 text-sm font-semibold border border-teal-400 rounded bg-teal-50/40"
                 />
               ) : (
                 <p className="text-sm font-semibold" style={{ color: accent.hex }}>
@@ -315,7 +318,6 @@ export function CvDocumentSheet({
                 </p>
               )}
 
-              {/* Explicitly labeled contact fields for 100% ATS parsing */}
               <div className="pt-2 space-y-1 text-xs text-slate-700">
                 {labeledContacts.map((item) => (
                   <p key={item.label}>
@@ -329,7 +331,7 @@ export function CvDocumentSheet({
             {renderPhotoBox('w-28 h-36')}
           </header>
 
-          {/* 01. Kurzprofil / Persönliches Profil */}
+          {/* 01. Kurzprofil */}
           <section>
             <h3
               className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-2.5"
@@ -342,14 +344,14 @@ export function CvDocumentSheet({
                 rows={3}
                 value={cv.profileStatement}
                 onChange={(e) => onUpdateCv({ ...cv, profileStatement: e.target.value })}
-                className="w-full p-2.5 text-sm border border-blue-300 rounded bg-blue-50/40"
+                className="w-full p-2.5 text-sm border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               <p className="text-sm leading-relaxed text-slate-700">{cv.profileStatement}</p>
             )}
           </section>
 
-          {/* 02. Berufserfahrung & Praktika (single-column linear entries) */}
+          {/* 02. Berufserfahrung & Praktika */}
           {cv.experience.length > 0 && (
             <section>
               <h3
@@ -362,7 +364,7 @@ export function CvDocumentSheet({
                 {cv.experience.map((exp, idx) => (
                   <div key={idx} className="space-y-1">
                     {isEditing ? (
-                      <div className="space-y-2 p-2.5 border border-blue-200 rounded bg-blue-50/20">
+                      <div className="space-y-2 p-2.5 border border-teal-200 rounded bg-teal-50/20">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <input
                             type="text"
@@ -372,7 +374,7 @@ export function CvDocumentSheet({
                               next[idx] = { ...exp, period: e.target.value };
                               onUpdateCv({ ...cv, experience: next });
                             }}
-                            className="px-2 py-1 text-xs border border-blue-300 rounded bg-white"
+                            className="px-2 py-1 text-xs border border-teal-300 rounded bg-white"
                           />
                           <input
                             type="text"
@@ -382,7 +384,7 @@ export function CvDocumentSheet({
                               next[idx] = { ...exp, role: e.target.value };
                               onUpdateCv({ ...cv, experience: next });
                             }}
-                            className="px-2 py-1 text-sm font-semibold border border-blue-300 rounded bg-white"
+                            className="px-2 py-1 text-sm font-semibold border border-teal-300 rounded bg-white"
                           />
                           <input
                             type="text"
@@ -392,7 +394,7 @@ export function CvDocumentSheet({
                               next[idx] = { ...exp, organization: e.target.value };
                               onUpdateCv({ ...cv, experience: next });
                             }}
-                            className="px-2 py-1 text-sm border border-blue-300 rounded bg-white"
+                            className="px-2 py-1 text-sm border border-teal-300 rounded bg-white"
                           />
                         </div>
                         <textarea
@@ -409,7 +411,7 @@ export function CvDocumentSheet({
                             };
                             onUpdateCv({ ...cv, experience: next });
                           }}
-                          className="w-full p-2 text-sm border border-blue-300 rounded bg-white"
+                          className="w-full p-2 text-sm border border-teal-300 rounded bg-white"
                         />
                       </div>
                     ) : (
@@ -507,7 +509,7 @@ export function CvDocumentSheet({
                             };
                             onUpdateCv({ ...cv, skills: next });
                           }}
-                          className="mt-1 w-full px-2 py-1 text-sm border border-blue-300 rounded bg-blue-50/40"
+                          className="mt-1 w-full px-2 py-1 text-sm border border-teal-400 rounded bg-teal-50/40"
                         />
                       ) : (
                         <p className="text-sm text-slate-700 mt-0.5">{group.items.join(', ')}</p>
@@ -519,7 +521,7 @@ export function CvDocumentSheet({
             </section>
           )}
 
-          {/* 05. Interessen & Engagement */}
+          {/* 05. Interessen */}
           {cv.interests && (
             <section>
               <h3
@@ -533,7 +535,7 @@ export function CvDocumentSheet({
                   type="text"
                   value={cv.interests}
                   onChange={(e) => onUpdateCv({ ...cv, interests: e.target.value })}
-                  className="w-full px-2.5 py-1.5 text-sm border border-blue-300 rounded bg-blue-50/40"
+                  className="w-full px-2.5 py-1.5 text-sm border border-teal-400 rounded bg-teal-50/40"
                 />
               ) : (
                 <p className="text-sm text-slate-700">{cv.interests}</p>

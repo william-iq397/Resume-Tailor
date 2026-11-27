@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 import { ApplicationsArchive } from './components/ApplicationsArchive';
 import { ProfileView } from './components/ProfileView';
 import { Sidebar, type WorkspaceTab } from './components/Sidebar';
@@ -22,6 +22,7 @@ import type {
 const PROFILE_STORAGE_KEY = 'ausbildung_studio_profile_v1';
 const APPS_STORAGE_KEY = 'ausbildung_studio_apps_v1';
 const TEMPLATE_STORAGE_KEY = 'ausbildung_studio_template_v1';
+const THEME_STORAGE_KEY = 'ausbildung_studio_theme_v1';
 
 function loadStoredProfile(): CandidateProfile {
   try {
@@ -77,9 +78,20 @@ function loadStoredTemplateConfig(): DocumentTemplateConfig {
   return DEFAULT_TEMPLATE_CONFIG;
 }
 
+function loadStoredTheme(): 'light' | 'dark' {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch {
+    // Ignore
+  }
+  return 'light';
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('tailor');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => loadStoredTheme());
 
   const [profile, setProfile] = useState<CandidateProfile>(() => loadStoredProfile());
   const [applications, setApplications] = useState<SavedApplication[]>(() =>
@@ -95,11 +107,25 @@ export default function App() {
   const [jobDescription, setJobDescription] = useState<string>(
     SAMPLE_JOB_PRESETS[0].description
   );
-  const [targetCompany, setTargetCompany] = useState<string>(SAMPLE_JOB_PRESETS[0].company);
-  const [targetRole, setTargetRole] = useState<string>(SAMPLE_JOB_PRESETS[0].role);
+  const [targetCompany, setTargetCompany] = useState<string>('');
+  const [targetRole, setTargetRole] = useState<string>('');
   const [language, setLanguage] = useState<OutputLanguage>('de_with_notes');
   const [tone, setTone] = useState<ApplicationTone>('modern');
   const [activePackage, setActivePackage] = useState<TailoredPackage | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Ignore
+    }
+  }, [theme]);
 
   useEffect(() => {
     try {
@@ -183,8 +209,8 @@ export default function App() {
       setTemplateConfig(app.templateConfig);
     }
     setJobDescription(app.jobDescription);
-    setTargetCompany(app.packageData.jobAnalysis.companyName);
-    setTargetRole(app.packageData.jobAnalysis.roleTitle);
+    setTargetCompany('');
+    setTargetRole('');
     setActivePackage(app.packageData);
     setActiveTab('tailor');
   };
@@ -220,13 +246,16 @@ export default function App() {
 
   const breadcrumbLabel =
     activeTab === 'tailor'
-      ? 'Tailor Application'
+      ? 'تجهيز التقديم'
       : activeTab === 'profile'
-      ? 'Base Profile'
-      : 'Saved Applications';
+      ? 'ملفي الشخصي'
+      : 'طلباتي المحفوظة';
 
   return (
-    <div className="min-h-screen flex bg-[#F8F9FA] text-slate-900">
+    <div
+      dir="rtl"
+      className="min-h-screen flex bg-[#F3F6FA] dark:bg-[#0E1624] text-slate-900 dark:text-[#EEF2F8] transition-colors"
+    >
       <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -238,38 +267,59 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Workspace Header */}
-        <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-8 flex items-center justify-between gap-8 no-print">
+        <header className="h-16 bg-white dark:bg-[#162133] border-b border-slate-200 dark:border-[#2A3B56] px-4 lg:px-8 flex items-center justify-between gap-8 no-print">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              aria-label="Open navigation"
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-md"
+              aria-label="فتح القائمة"
+              className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-md"
             >
               <Menu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2 text-sm truncate">
-              <span className="text-slate-400">Workspace</span>
-              <span className="text-slate-300" aria-hidden="true">
+              <span className="text-slate-400 dark:text-slate-500">مساحة العمل</span>
+              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">
                 /
               </span>
-              <span className="font-medium text-slate-900 truncate">{breadcrumbLabel}</span>
+              <span className="font-medium text-slate-900 dark:text-[#EEF2F8] truncate">
+                {breadcrumbLabel}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
-              onClick={handleStartNewApplication}
-              className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+              aria-label={theme === 'light' ? 'تفعيل الوضع الليلي' : 'تفعيل الوضع النهاري'}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-[#F3F6FA] dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-200/70 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
-              New Application
+              {theme === 'light' ? (
+                <>
+                  <Moon className="h-3.5 w-3.5 text-slate-600" />
+                  <span>الوضع الليلي</span>
+                </>
+              ) : (
+                <>
+                  <Sun className="h-3.5 w-3.5 text-amber-300" />
+                  <span>الوضع النهاري</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleStartNewApplication}
+              className="px-4 py-2 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            >
+              طلب جديد
             </button>
           </div>
         </header>
 
         {/* Main Viewport */}
-        <main className="flex-1 p-4 md:p-8 max-w-[1200px] w-full mx-auto">
+        <main className="flex-1 p-4 md:p-8 max-w-[1160px] w-full mx-auto">
           {activeTab === 'tailor' && (
             <TailorWorkspace
               profile={profile}

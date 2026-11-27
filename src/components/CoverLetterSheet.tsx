@@ -24,7 +24,7 @@ export function CoverLetterSheet({
   onUpdateLetter,
 }: CoverLetterSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [showEnglishNotes, setShowEnglishNotes] = useState(true);
+  const [showArabicSummary, setShowArabicSummary] = useState(true);
   const [copied, setCopied] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -34,8 +34,8 @@ export function CoverLetterSheet({
   const wordCount = countCoverLetterWords(letter);
   const pageFitText =
     wordCount <= 340
-      ? 'Fits 1 DIN A4 page'
-      : 'Slightly long — consider trimming for 1-page DIN 5008';
+      ? 'طول مثالي لصفحة A4 واحدة'
+      : 'طويلة قليلاً — يفضل تقصيرها لتناسب صفحة واحدة';
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(formatCoverLetterAsText(letter));
@@ -65,21 +65,21 @@ export function CoverLetterSheet({
       />
 
       {/* Action Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 no-print">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-          <span className="font-medium text-slate-900">
-            {isEuropass ? 'Europass Anschreiben (DIN 5008 / ATS)' : 'Anschreiben (DIN 5008)'}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg px-4 py-3 no-print">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-[#9FB0C7]">
+          <span className="font-semibold text-slate-900 dark:text-[#EEF2F8]">
+            {isEuropass ? 'رسالة الدافع (Europass / DIN 5008)' : 'رسالة الدافع'}
           </span>
           <span aria-hidden="true">·</span>
-          <span>
-            {isTailored ? 'AI-Tailored to Job Posting' : 'Base Profile Template Preview'}
-          </span>
+          <span>{isTailored ? 'معدلة للإعلان' : 'معاينة أولية'}</span>
           <span aria-hidden="true">·</span>
-          <span className="font-mono-tabular">{wordCount} words</span>
+          <span className="font-mono-tabular">{wordCount} كلمة</span>
           <span aria-hidden="true">·</span>
           <span
             className={
-              wordCount <= 340 ? 'text-emerald-700 font-medium' : 'text-amber-700 font-medium'
+              wordCount <= 340
+                ? 'text-emerald-700 dark:text-emerald-400 font-medium'
+                : 'text-amber-700 dark:text-amber-400 font-medium'
             }
           >
             {pageFitText}
@@ -90,15 +90,15 @@ export function CoverLetterSheet({
           {letter.englishSummary && (
             <button
               type="button"
-              onClick={() => setShowEnglishNotes((prev) => !prev)}
+              onClick={() => setShowArabicSummary((prev) => !prev)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
-                showEnglishNotes
-                  ? 'bg-slate-100 text-slate-900 border-slate-300'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                showArabicSummary
+                  ? 'bg-slate-100 dark:bg-[#1D2B42] text-slate-900 dark:text-white border-slate-300 dark:border-[#3A4F73]'
+                  : 'bg-white dark:bg-[#1D2B42] text-slate-700 dark:text-[#EEF2F8] border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50'
               }`}
             >
               <Languages className="h-3.5 w-3.5" />
-              English Summary
+              الشرح بالعربية
             </button>
           )}
           <button
@@ -106,60 +106,65 @@ export function CoverLetterSheet({
             onClick={() => setIsEditing((prev) => !prev)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap ${
               isEditing
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-700'
+                : 'bg-white dark:bg-[#1D2B42] text-slate-700 dark:text-[#EEF2F8] border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652]'
             }`}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {isEditing ? 'Done Editing' : 'Edit Template'}
+            {isEditing ? 'إنهاء التعديل' : 'تعديل الرسالة'}
           </button>
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             ) : (
               <Copy className="h-3.5 w-3.5" />
             )}
-            {copied ? 'Copied' : 'Copy Text'}
+            {copied ? 'تم النسخ' : 'نسخ النص'}
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-white dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap"
           >
             <Printer className="h-3.5 w-3.5" />
-            Print
+            طباعة
           </button>
           <button
             type="button"
             onClick={handleExportPdf}
             disabled={isExportingPdf}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 disabled:opacity-60 rounded-lg transition-colors whitespace-nowrap"
           >
             {isExportingPdf ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <FileDown className="h-3.5 w-3.5" />
             )}
-            Export PDF
+            تحميل PDF
           </button>
         </div>
       </div>
 
-      {showEnglishNotes && letter.englishSummary && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg px-5 py-4 max-w-[820px] mx-auto no-print">
-          <p className="text-xs font-semibold text-slate-700 mb-1">
-            English Translation &amp; Meaning Summary
+      {showArabicSummary && letter.englishSummary && (
+        <div className="bg-teal-50/70 dark:bg-[#162133] border border-teal-200 dark:border-[#2A3B56] rounded-lg px-5 py-4 max-w-[820px] mx-auto no-print">
+          <p className="text-xs font-semibold text-teal-900 dark:text-teal-300 mb-1">
+            ملخص محتوى الرسالة بالعربية (لتفهم كل ما كُتب بالألمانية)
           </p>
-          <p className="text-sm text-slate-600 leading-relaxed">{letter.englishSummary}</p>
+          <p className="text-sm text-slate-700 dark:text-[#C5D1E0] leading-relaxed">
+            {letter.englishSummary}
+          </p>
         </div>
       )}
 
-      {/* Single-column ATS-safe Europass / DIN 5008 Anschreiben */}
-      <article className="bg-white border border-slate-200 rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 print-only-sheet">
+      {/* Single-column ATS-safe Europass / DIN 5008 Anschreiben (always LTR white paper) */}
+      <article
+        dir="ltr"
+        className="bg-white border border-slate-200 dark:border-[#2A3B56] rounded-lg overflow-hidden max-w-[820px] mx-auto text-slate-900 text-left print-only-sheet"
+      >
         {(isEuropass || isBauhaus) && (
           <div
             className={isEuropass ? 'h-2.5 w-full' : 'h-1.5 w-full'}
@@ -177,14 +182,14 @@ export function CoverLetterSheet({
             </p>
           )}
 
-          {/* Linear Sender Block */}
+          {/* Sender Block */}
           <div className="whitespace-pre-line text-xs text-slate-600 leading-relaxed mb-6 pb-4 border-b border-slate-200">
             {isEditing ? (
               <textarea
                 rows={4}
                 value={letter.senderBlock}
                 onChange={(e) => onUpdateLetter({ ...letter, senderBlock: e.target.value })}
-                className="w-full sm:w-80 p-2 text-xs border border-blue-300 rounded bg-blue-50/40"
+                className="w-full sm:w-80 p-2 text-xs border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               letter.senderBlock
@@ -198,7 +203,7 @@ export function CoverLetterSheet({
                 rows={4}
                 value={letter.recipientBlock}
                 onChange={(e) => onUpdateLetter({ ...letter, recipientBlock: e.target.value })}
-                className="w-full sm:w-80 p-2 text-sm border border-blue-300 rounded bg-blue-50/40"
+                className="w-full sm:w-80 p-2 text-sm border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               letter.recipientBlock
@@ -212,7 +217,7 @@ export function CoverLetterSheet({
                 type="text"
                 value={letter.datePlaceLine}
                 onChange={(e) => onUpdateLetter({ ...letter, datePlaceLine: e.target.value })}
-                className="px-2 py-1 text-sm text-right border border-blue-300 rounded bg-blue-50/40"
+                className="px-2 py-1 text-sm text-right border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               letter.datePlaceLine
@@ -226,7 +231,7 @@ export function CoverLetterSheet({
                 type="text"
                 value={letter.subjectLine}
                 onChange={(e) => onUpdateLetter({ ...letter, subjectLine: e.target.value })}
-                className="w-full px-2.5 py-1.5 text-base font-bold border border-blue-300 rounded bg-blue-50/40"
+                className="w-full px-2.5 py-1.5 text-base font-bold border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               <h2 className="text-base font-bold" style={{ color: accent.hex }}>
@@ -242,7 +247,7 @@ export function CoverLetterSheet({
                 type="text"
                 value={letter.salutation}
                 onChange={(e) => onUpdateLetter({ ...letter, salutation: e.target.value })}
-                className="w-full px-2.5 py-1 text-sm border border-blue-300 rounded bg-blue-50/40"
+                className="w-full px-2.5 py-1 text-sm border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               <p>{letter.salutation}</p>
@@ -264,7 +269,7 @@ export function CoverLetterSheet({
                       .filter(Boolean),
                   })
                 }
-                className="w-full p-3 text-sm leading-6 border border-blue-300 rounded bg-blue-50/40"
+                className="w-full p-3 text-sm leading-6 border border-teal-400 rounded bg-teal-50/40"
               />
             ) : (
               letter.paragraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
@@ -279,13 +284,13 @@ export function CoverLetterSheet({
                   type="text"
                   value={letter.closing}
                   onChange={(e) => onUpdateLetter({ ...letter, closing: e.target.value })}
-                  className="w-full px-2.5 py-1 text-sm border border-blue-300 rounded bg-blue-50/40"
+                  className="w-full px-2.5 py-1 text-sm border border-teal-400 rounded bg-teal-50/40"
                 />
                 <input
                   type="text"
                   value={letter.signatureName}
                   onChange={(e) => onUpdateLetter({ ...letter, signatureName: e.target.value })}
-                  className="w-full px-2.5 py-1 text-sm border border-blue-300 rounded bg-blue-50/40"
+                  className="w-full px-2.5 py-1 text-sm border border-teal-400 rounded bg-teal-50/40"
                 />
               </div>
             ) : (
