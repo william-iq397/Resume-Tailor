@@ -1,6 +1,20 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Ensure primary teal action buttons always render with solid hex backgrounds */
+.bg-teal-700 {
+  background-color: #0f766e;
+}
+.hover\:bg-teal-800:hover {
+  background-color: #115e59;
+}
+.dark .dark\:bg-teal-600 {
+  background-color: #0d9488;
+}
+.dark .dark\:hover\:bg-teal-500:hover {
+  background-color: #14b8a6;
+}
+
 @layer base {
   :root {
     --font-display: 'Cairo', system-ui, -apple-system, sans-serif;

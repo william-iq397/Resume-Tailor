@@ -499,9 +499,7 @@ function sanitizeTailoredPackage(pkg: Record<string, unknown>) {
   return pkg;
 }
 
-async function startServer() {
-  const app = express();
-  const port = Number(process.env.PORT) || 3000;
+const app = express();
 
   app.use(express.json({ limit: "6mb" }));
   app.use("/api", (_req: Request, res: Response, next: NextFunction) => {
