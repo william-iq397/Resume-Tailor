@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpLeft, Copy, Search, Trash2 } from 'lucide-react';
+import { ArrowUpLeft, Compass, Copy, Search, Sparkles, Trash2 } from 'lucide-react';
 import type { ApplicationStatus, SavedApplication } from '../types/ausbildung';
 
 interface ApplicationsArchiveProps {
@@ -9,6 +9,7 @@ interface ApplicationsArchiveProps {
   onDuplicateApplication: (app: SavedApplication) => void;
   onDeleteApplication: (id: string) => void;
   onGoToTailor: () => void;
+  onGoToFinder?: () => void;
 }
 
 const STATUS_LABELS: Record<ApplicationStatus, { label: string; colorClass: string }> = {
@@ -25,6 +26,7 @@ export function ApplicationsArchive({
   onDuplicateApplication,
   onDeleteApplication,
   onGoToTailor,
+  onGoToFinder,
 }: ApplicationsArchiveProps) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
@@ -47,17 +49,38 @@ export function ApplicationsArchive({
             طلباتي المحفوظة
           </h1>
           <p className="text-sm text-slate-600 dark:text-[#9FB0C7] mt-1">
-            جميع طلبات التدريب المهني التي قمت بتجهيزها وحفظها حسب الشركة والمهنة.
+            جميع طلبات التدريب المهني التي جهزتها تُحفظ هنا تلقائياً حسب الشركة والمهنة.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onGoToTailor}
-          className="px-4 py-2 text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap shrink-0 self-start sm:self-auto"
-        >
-          تجهيز طلب جديد
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {onGoToFinder && (
+            <button
+              type="button"
+              onClick={onGoToFinder}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-800 dark:text-[#EEF2F8] bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-50 dark:hover:bg-[#1D2B42] rounded-lg transition-colors whitespace-nowrap shrink-0"
+            >
+              <Compass className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              البحث ومطابقة الفرص
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onGoToTailor}
+            className="px-4 py-2 text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 rounded-lg transition-colors whitespace-nowrap shrink-0"
+          >
+            تجهيز طلب جديد
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/70 rounded-lg px-4 py-3 text-xs text-teal-900 dark:text-teal-200 flex items-start gap-2.5">
+        <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+        <span>
+          <strong>كيف تعمل المطابقة الذكية؟</strong> يتم حفظ كل طلب تجهزه هنا تلقائياً، ويستخدم
+          محرك البحث هذه الطلبات لحساب نسبة قبولك في الإعلانات الجديدة والسابقة وإرسال تنبيه لك
+          عندما تتطابق فرصة بنسبة ٧٠٪ فأكثر.
+        </span>
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#162133] border border-slate-200 dark:border-[#2A3B56] rounded-lg p-4">

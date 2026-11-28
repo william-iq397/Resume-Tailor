@@ -4,12 +4,18 @@ import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 export const SUPER_ADMIN_EMAIL = 'hsenmhmd1022@gmail.com';
+export const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const firestoreDatabaseId = (firebaseConfig as { firestoreDatabaseId?: string }).firestoreDatabaseId;
+export const db = firestoreDatabaseId ? getFirestore(app, firestoreDatabaseId) : getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+export const gmailProvider = new GoogleAuthProvider();
+gmailProvider.addScope(GMAIL_SEND_SCOPE);
+gmailProvider.setCustomParameters({ prompt: 'consent select_account' });
 
 export enum OperationType {
   CREATE = 'create',

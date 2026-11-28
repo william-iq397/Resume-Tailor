@@ -1,11 +1,13 @@
 import { jsPDF } from 'jspdf';
 import { getAccentMeta } from '../data/presets';
 import type {
+  CandidateCertificatesMap,
   CandidateProfile,
   DocumentTemplateConfig,
   TailoredCoverLetter,
   TailoredCv,
 } from '../types/ausbildung';
+import { getUploadedAnlagenLabels } from './certificateStorage';
 
 function sanitizePdfText(text: string): string {
   return (text || '')
@@ -78,7 +80,8 @@ function renderCvIntoDoc(
   cv: TailoredCv,
   profile: CandidateProfile,
   config: DocumentTemplateConfig,
-  photoDataUrl: string | null
+  photoDataUrl: string | null,
+  certificates?: CandidateCertificatesMap
 ) {
   const accent = getAccentMeta(config.accent);
   const [ar, ag, ab] = accent.rgb;
@@ -326,6 +329,17 @@ function renderCvIntoDoc(
     doc.setTextColor(51, 65, 85);
     const intLines = doc.splitTextToSize(sanitizePdfText(cv.interests), contentW);
     doc.text(intLines, marginX, y);
+    y += intLines.length * 4.5 + 4;
+  }
+
+  // 6. Anlagen (ONLY included if candidate actually uploaded certificates)
+  const anlagenLabels = certificates ? getUploadedAnlagenLabels(certificates) : [];
+  if (anlagenLabels.length > 0) {
+    drawSectionHeading('ANLAGEN');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.3);
+    doc.setTextColor(51, 65, 85);
+    doc.text(sanitizePdfText(anlagenLabels.join(', ')), marginX, y);
   }
 }
 
@@ -462,15 +476,26 @@ function renderCoverLetterIntoDoc(
   }
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 export async function exportCvToPdf(
   cv: TailoredCv,
   profile: CandidateProfile,
   config: DocumentTemplateConfig,
-  companyName: string
+  companyName: string,
+  certificates?: CandidateCertificatesMap
 ): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const photoDataUrl = config.showPhoto ? await loadImageAsJpegDataUrl(profile.photoUrl) : null;
-  renderCvIntoDoc(doc, cv, profile, config, photoDataUrl);
+  renderCvIntoDoc(doc, cv, profile, config, photoDataUrl, certificates);
   doc.save(`Europass-Lebenslauf-${slugify(companyName)}.pdf`);
 }
 
@@ -489,12 +514,46 @@ export async function exportCombinedPdf(
   letter: TailoredCoverLetter,
   profile: CandidateProfile,
   config: DocumentTemplateConfig,
-  companyName: string
+  companyName: string,
+  certificates?: CandidateCertificatesMap
 ): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   renderCoverLetterIntoDoc(doc, letter, config);
   doc.addPage();
   const photoDataUrl = config.showPhoto ? await loadImageAsJpegDataUrl(profile.photoUrl) : null;
-  renderCvIntoDoc(doc, cv, profile, config, photoDataUrl);
+  renderCvIntoDoc(doc, cv, profile, config, photoDataUrl, certificates);
   doc.save(`Bewerbung-Europass-${slugify(companyName)}.pdf`);
+}
+
+export async function generateCvPdfBase64(
+  cv: TailoredCv,
+  profile: CandidateProfile,
+  config: DocumentTemplateConfig,
+  companyName: string,
+  certificates?: CandidateCertificatesMap
+): Promise<{ filename: string; mimeType: string; contentBase64: string }> {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const photoDataUrl = config.showPhoto ? await loadImageAsJpegDataUrl(profile.photoUrl) : null;
+  renderCvIntoDoc(doc, cv, profile, config, photoDataUrl, certificates);
+  const contentBase64 = arrayBufferToBase64(doc.output('arraybuffer'));
+  return {
+    filename: `Lebenslauf-${slugify(companyName)}.pdf`,
+    mimeType: 'application/pdf',
+    contentBase64,
+  };
+}
+
+export async function generateCoverLetterPdfBase64(
+  letter: TailoredCoverLetter,
+  config: DocumentTemplateConfig,
+  companyName: string
+): Promise<{ filename: string; mimeType: string; contentBase64: string }> {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  renderCoverLetterIntoDoc(doc, letter, config);
+  const contentBase64 = arrayBufferToBase64(doc.output('arraybuffer'));
+  return {
+    filename: `Anschreiben-${slugify(companyName)}.pdf`,
+    mimeType: 'application/pdf',
+    contentBase64,
+  };
 }

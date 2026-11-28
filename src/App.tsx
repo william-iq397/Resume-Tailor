@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
-import { LogIn, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { HelpCircle, LogIn, LogOut, Menu, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ApplicationsArchive } from './components/ApplicationsArchive';
+import { AppTutorialModal } from './components/AppTutorialModal';
+import { AusbildungFinder } from './components/AusbildungFinder';
+import { NotificationBell } from './components/NotificationBell';
 import { ProfileView } from './components/ProfileView';
 import { Sidebar, type WorkspaceTab } from './components/Sidebar';
 import { TailorWorkspace } from './components/TailorWorkspace';
@@ -13,18 +16,32 @@ import {
 import type {
   ApplicationStatus,
   ApplicationTone,
+  AusbildungOpportunity,
+  CandidateCertificatesMap,
   CandidateProfile,
+  CertificateType,
   DocumentTemplateConfig,
+  MatchNotification,
   OutputLanguage,
   SavedApplication,
   TailoredCv,
   TailoredPackage,
 } from './types/ausbildung';
+import {
+  deleteCertificate,
+  fileToCertificate,
+  loadCertificates,
+  saveCertificate,
+} from './utils/certificateStorage';
+import { evaluateOpportunityMatch } from './utils/matchingEngine';
 
 const PROFILE_STORAGE_KEY = 'ausbildung_studio_profile_v1';
 const APPS_STORAGE_KEY = 'ausbildung_studio_apps_v1';
 const TEMPLATE_STORAGE_KEY = 'ausbildung_studio_template_v1';
 const THEME_STORAGE_KEY = 'ausbildung_studio_theme_v1';
+const DISCOVERED_STORAGE_KEY = 'ausbildung_discovered_v1';
+const NOTIFS_STORAGE_KEY = 'ausbildung_notifications_v1';
+const TUTORIAL_SEEN_KEY = 'ausbildung_tutorial_seen_v1';
 
 function loadStoredProfile(): CandidateProfile {
   try {
@@ -90,25 +107,81 @@ function loadStoredTheme(): 'light' | 'dark' {
   return 'light';
 }
 
+function loadStoredOpportunities(): AusbildungOpportunity[] {
+  try {
+    const raw = localStorage.getItem(DISCOVERED_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as AusbildungOpportunity[];
+    }
+  } catch {
+    // Ignore
+  }
+  return [];
+}
+
+function loadStoredNotifications(): MatchNotification[] {
+  try {
+    const raw = localStorage.getItem(NOTIFS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as MatchNotification[];
+    }
+  } catch {
+    // Ignore
+  }
+  return [];
+}
+
 export default function App() {
   const { firebaseUser, isSuperAdmin, signInWithGoogle, signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => {
     const hash = window.location.hash.replace('#', '') as WorkspaceTab;
-    if (hash === 'tailor' || hash === 'profile' || hash === 'archive' || hash === 'admin') {
+    if (
+      hash === 'tailor' ||
+      hash === 'finder' ||
+      hash === 'profile' ||
+      hash === 'archive' ||
+      hash === 'admin'
+    ) {
       return hash;
     }
     const saved = localStorage.getItem('ausbildung_active_tab') as WorkspaceTab | null;
-    if (saved === 'tailor' || saved === 'profile' || saved === 'archive' || saved === 'admin') {
+    if (
+      saved === 'tailor' ||
+      saved === 'finder' ||
+      saved === 'profile' ||
+      saved === 'archive' ||
+      saved === 'admin'
+    ) {
       return saved;
     }
     return 'tailor';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadStoredTheme());
+  const [tutorialOpen, setTutorialOpen] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem(TUTORIAL_SEEN_KEY);
+    } catch {
+      return false;
+    }
+  });
 
   const [profile, setProfile] = useState<CandidateProfile>(() => loadStoredProfile());
+  const [certificates, setCertificates] = useState<CandidateCertificatesMap>({
+    high_school: null,
+    german_cert: null,
+  });
   const [applications, setApplications] = useState<SavedApplication[]>(() =>
     loadStoredApplications()
+  );
+  const [discoveredOpportunities, setDiscoveredOpportunities] = useState<
+    AusbildungOpportunity[]
+  >(() => loadStoredOpportunities());
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<MatchNotification[]>(() =>
+    loadStoredNotifications()
   );
   const [templateConfig, setTemplateConfig] = useState<DocumentTemplateConfig>(() =>
     loadStoredTemplateConfig()
@@ -170,6 +243,155 @@ export default function App() {
     }
   }, [templateConfig]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        DISCOVERED_STORAGE_KEY,
+        JSON.stringify(discoveredOpportunities.slice(0, 60))
+      );
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [discoveredOpportunities]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFS_STORAGE_KEY, JSON.stringify(notifications.slice(0, 40)));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [notifications]);
+
+  useEffect(() => {
+    let active = true;
+    void loadCertificates().then((loaded) => {
+      if (active) setCertificates(loaded);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const refreshHighMatchNotifications = useCallback(
+    (opportunitiesOverride?: AusbildungOpportunity[]): number => {
+      const sourceOpps = opportunitiesOverride ?? discoveredOpportunities;
+      const now = new Date().toISOString();
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      let highCount = 0;
+
+      setNotifications((prev) => {
+        const prevMap = new Map(prev.map((n) => [n.opportunityId, n]));
+        const nextList: MatchNotification[] = [];
+
+        for (const opp of sourceOpps) {
+          const res = evaluateOpportunityMatch(opp, profile, applications, certificates);
+          if (!res.isHighMatch) continue;
+          highCount += 1;
+
+          const existing = prevMap.get(opp.id);
+          const firstSeenMs = opp.firstSeenAt ? Date.parse(opp.firstSeenAt) : Date.now();
+          const isNewListing = !Number.isNaN(firstSeenMs)
+            ? Date.now() - firstSeenMs <= sevenDaysMs
+            : true;
+
+          // Surface again as unread if score or matched saved app upgraded meaningfully
+          const upgraded =
+            existing &&
+            (res.score > existing.matchScore + 4 ||
+              (res.matchedAppLabel && res.matchedAppLabel !== existing.matchedAppLabel));
+
+          nextList.push({
+            id: existing?.id || `notif-${opp.id}`,
+            opportunityId: opp.id,
+            title: opp.title,
+            companyName: opp.companyName,
+            location: opp.location,
+            matchScore: res.score,
+            matchedAppLabel: res.matchedAppLabel,
+            isNewListing,
+            read: existing && !upgraded ? existing.read : false,
+            createdAt: existing?.createdAt || now,
+          });
+        }
+
+        return nextList.sort((a, b) => b.matchScore - a.matchScore);
+      });
+
+      return highCount;
+    },
+    [discoveredOpportunities, profile, applications, certificates]
+  );
+
+  useEffect(() => {
+    if (discoveredOpportunities.length > 0) {
+      refreshHighMatchNotifications();
+    }
+  }, [applications, profile, certificates, discoveredOpportunities.length, refreshHighMatchNotifications]);
+
+  const handleCloseTutorial = () => {
+    setTutorialOpen(false);
+    try {
+      localStorage.setItem(TUTORIAL_SEEN_KEY, '1');
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleUploadCertificate = async (type: CertificateType, file: File) => {
+    const cert = await fileToCertificate(file, type);
+    await saveCertificate(cert);
+    setCertificates((prev) => ({ ...prev, [type]: cert }));
+  };
+
+  const handleDeleteCertificate = async (type: CertificateType) => {
+    await deleteCertificate(type);
+    setCertificates((prev) => ({ ...prev, [type]: null }));
+  };
+
+  const handleMergeDiscoveredOpportunities = (incoming: AusbildungOpportunity[]) => {
+    const now = new Date().toISOString();
+    setDiscoveredOpportunities((prev) => {
+      const map = new Map<string, AusbildungOpportunity>();
+      for (const old of prev) {
+        map.set(old.id, old);
+      }
+      for (const item of incoming) {
+        const existing = map.get(item.id);
+        map.set(item.id, {
+          ...existing,
+          ...item,
+          firstSeenAt: existing?.firstSeenAt || item.firstSeenAt || now,
+        });
+      }
+      return Array.from(map.values()).slice(0, 60);
+    });
+  };
+
+  const handleAutoSavePackage = (
+    pkg: TailoredPackage,
+    jobText: string,
+    preferredStatus?: ApplicationStatus
+  ): SavedApplication => {
+    const now = new Date().toISOString();
+    const statusToUse = preferredStatus || (activeStatus === 'draft' ? 'ready' : activeStatus);
+    const newId = `app-${Date.now()}`;
+    const newApp: SavedApplication = {
+      id: newId,
+      createdAt: now,
+      updatedAt: now,
+      status: statusToUse,
+      language,
+      tone,
+      templateConfig,
+      jobDescription: jobText,
+      packageData: pkg,
+    };
+    setApplications((prev) => [newApp, ...prev]);
+    setActiveAppId(newId);
+    setActiveStatus(statusToUse);
+    return newApp;
+  };
+
   const handleSaveApplication = () => {
     if (!activePackage) return;
     const now = new Date().toISOString();
@@ -192,20 +414,7 @@ export default function App() {
         )
       );
     } else {
-      const newId = `app-${Date.now()}`;
-      const newApp: SavedApplication = {
-        id: newId,
-        createdAt: now,
-        updatedAt: now,
-        status: activeStatus,
-        language,
-        tone,
-        templateConfig,
-        jobDescription,
-        packageData: activePackage,
-      };
-      setApplications((prev) => [newApp, ...prev]);
-      setActiveAppId(newId);
+      handleAutoSavePackage(activePackage, jobDescription);
     }
   };
 
@@ -302,11 +511,15 @@ export default function App() {
   const breadcrumbLabel =
     activeTab === 'tailor'
       ? 'تجهيز التقديم'
+      : activeTab === 'finder'
+      ? 'البحث والتقديم التلقائي'
       : activeTab === 'profile'
       ? 'ملفي الشخصي'
       : activeTab === 'admin'
       ? 'لوحة المشرف'
       : 'طلباتي المحفوظة';
+
+  const unreadHighMatchCount = notifications.filter((n) => !n.read).length;
 
   return (
     <div
@@ -318,13 +531,15 @@ export default function App() {
         onSelectTab={setActiveTab}
         profile={profile}
         savedCount={applications.length}
+        highMatchCount={unreadHighMatchCount}
+        onOpenTutorial={() => setTutorialOpen(true)}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Workspace Header */}
-        <header className="h-16 bg-white dark:bg-[#162133] border-b border-slate-200 dark:border-[#2A3B56] px-4 lg:px-8 flex items-center justify-between gap-8 no-print">
+        <header className="h-16 bg-white dark:bg-[#162133] border-b border-slate-200 dark:border-[#2A3B56] px-4 lg:px-8 flex items-center justify-between gap-4 no-print">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -345,7 +560,31 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <NotificationBell
+              notifications={notifications}
+              onMarkAllRead={() =>
+                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+              }
+              onSelectNotification={(notif) => {
+                setNotifications((prev) =>
+                  prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
+                );
+                setSelectedOpportunityId(notif.opportunityId);
+                setActiveTab('finder');
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              aria-label="شرح التطبيق"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-[#F3F6FA] dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-200/70 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap shrink-0"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+              <span className="hidden md:inline">شرح التطبيق</span>
+            </button>
+
             {isSuperAdmin && (
               <button
                 type="button"
@@ -365,7 +604,7 @@ export default function App() {
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-[#EEF2F8] bg-[#F3F6FA] dark:bg-[#1D2B42] border border-slate-200 dark:border-[#2A3B56] hover:bg-slate-200/70 dark:hover:bg-[#243652] rounded-lg transition-colors whitespace-nowrap shrink-0"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">تسجيل الخروج</span>
+                <span className="hidden lg:inline">تسجيل الخروج</span>
               </button>
             ) : (
               <button
@@ -387,12 +626,12 @@ export default function App() {
               {theme === 'light' ? (
                 <>
                   <Moon className="h-3.5 w-3.5 text-slate-600" />
-                  <span>الوضع الليلي</span>
+                  <span className="hidden md:inline">الوضع الليلي</span>
                 </>
               ) : (
                 <>
                   <Sun className="h-3.5 w-3.5 text-amber-300" />
-                  <span>الوضع النهاري</span>
+                  <span className="hidden md:inline">الوضع النهاري</span>
                 </>
               )}
             </button>
@@ -412,6 +651,7 @@ export default function App() {
           {activeTab === 'tailor' && (
             <TailorWorkspace
               profile={profile}
+              certificates={certificates}
               onUpdatePhoto={(photoUrl) =>
                 setProfile((prev) => ({ ...prev, photoUrl }))
               }
@@ -438,15 +678,47 @@ export default function App() {
                 if (activeAppId) handleUpdateSavedStatus(activeAppId, status);
               }}
               onSaveApplication={handleSaveApplication}
+              onAutoSavePackage={(pkg, jobText) => handleAutoSavePackage(pkg, jobText)}
               onGoToProfile={() => setActiveTab('profile')}
+              onGoToArchive={() => setActiveTab('archive')}
+            />
+          )}
+
+          {activeTab === 'finder' && (
+            <AusbildungFinder
+              profile={profile}
+              certificates={certificates}
+              templateConfig={templateConfig}
+              language={language}
+              tone={tone}
+              savedApplications={applications}
+              discoveredOpportunities={discoveredOpportunities}
+              selectedOpportunityId={selectedOpportunityId}
+              onSelectOpportunityId={setSelectedOpportunityId}
+              onMergeDiscoveredOpportunities={handleMergeDiscoveredOpportunities}
+              onAutoSaveApplication={handleAutoSavePackage}
+              onUpdateSavedStatus={handleUpdateSavedStatus}
+              onOpenInTailor={(pkg, jobText, savedAppId) => {
+                setActivePackage(pkg);
+                setJobDescription(jobText);
+                setActiveAppId(savedAppId || null);
+                setActiveStatus('ready');
+                setActiveTab('tailor');
+              }}
+              onRefreshNotifications={refreshHighMatchNotifications}
+              onGoToProfile={() => setActiveTab('profile')}
+              onGoToArchive={() => setActiveTab('archive')}
             />
           )}
 
           {activeTab === 'profile' && (
             <ProfileView
               profile={profile}
+              certificates={certificates}
               activePackage={activePackage}
               onChange={setProfile}
+              onUploadCertificate={handleUploadCertificate}
+              onDeleteCertificate={handleDeleteCertificate}
               onSyncCvToProfile={handleSyncCvToProfile}
               onGoToTailor={() => setActiveTab('tailor')}
             />
@@ -460,12 +732,19 @@ export default function App() {
               onDuplicateApplication={handleDuplicateApplication}
               onDeleteApplication={handleDeleteApplication}
               onGoToTailor={handleStartNewApplication}
+              onGoToFinder={() => setActiveTab('finder')}
             />
           )}
 
           {activeTab === 'admin' && isSuperAdmin && <AdminDashboard />}
         </main>
       </div>
+
+      <AppTutorialModal
+        isOpen={tutorialOpen}
+        onClose={handleCloseTutorial}
+        onNavigateTab={(tab) => setActiveTab(tab)}
+      />
     </div>
   );
 }
