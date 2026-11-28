@@ -1,11 +1,12 @@
 {
-  "projectId": "gen-lang-client-0268632961",
-  "appId": "1:817859553644:web:437aa59680192b7f61eb49",
-  "apiKey": "AIzaSyCUdkO_MGmGhHWFPPNzaS0lMmowZ6TzqOk",
-  "authDomain": "gen-lang-client-0268632961.firebaseapp.com",
-  "storageBucket": "gen-lang-client-0268632961.firebasestorage.app",
-  "messagingSenderId": "817859553644",
+  "projectId": "decent-poetry-rdrm3",
+  "appId": "1:560431716158:web:14c996e4bf45f30bd4fe6f",
+  "apiKey": "AIzaSyCvxJvLbv-h30SijxTOvYjL-VtkAhg4ugw",
+  "authDomain": "decent-poetry-rdrm3.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-ausbildungstudio-b9b4dda7-e9ac-49d1-935d-37a69f989a21",
+  "storageBucket": "decent-poetry-rdrm3.firebasestorage.app",
+  "messagingSenderId": "560431716158",
   "measurementId": "",
-  "oAuthClientId": "817859553644-gnmqpe0sp8ff4adem1jnj8t1t30ghlb7.apps.googleusercontent.com",
+  "oAuthClientId": "560431716158-brd3j3irhc8v7uqffub25ldjafm8cnv2.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

@@ -29,6 +29,7 @@ import {
   SUPER_ADMIN_EMAIL,
   auth,
   db,
+  gmailAuth,
   gmailProvider,
   googleProvider,
   handleFirestoreError,
@@ -213,12 +214,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     cachedGmailToken = null;
     setHasGmailAccess(false);
-    await signOut(auth);
+    await Promise.allSettled([signOut(auth), signOut(gmailAuth)]);
   }, []);
 
   const connectGmail = useCallback(async (): Promise<string> => {
     setAuthError(null);
-    const result = await signInWithPopup(auth, gmailProvider);
+    const result = await signInWithPopup(gmailAuth, gmailProvider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
       throw new Error('لم يتم منح إذن إرسال البريد عبر Gmail. يرجى المحاولة مجدداً والموافقة على الصلاحية.');
