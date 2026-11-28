@@ -22,7 +22,7 @@ import type {
 import { formatCvAsText } from '../utils/documentExport';
 import { exportCvToPdf } from '../utils/pdfExport';
 import { TemplateControlsBar } from './TemplateControlsBar';
-
+// new deploy
 interface CvDocumentSheetProps {
   cv: TailoredCv;
   profile: CandidateProfile;
